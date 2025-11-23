@@ -1,9 +1,9 @@
 {
-  "name": "cc-plugins",
+  "name": "zhilin-cc-plugins",
   "displayName": "CC Plugins Marketplace",
   "description": "A curated marketplace for Claude Code plugins, skills, and extensions",
   "version": "1.0.0",
   "author": "CC Plugins Community",
-  "repository": "https://github.com/<your-username>/cc-plugins",
+  "repository": "https://github.com/ZhilinS/cc-plugins",
   "plugins": []
 }

@@ -1,0 +1,17 @@
+{
+  "name": "ui-developer",
+  "version": "0.0.1",
+  "description": "UI development workflows following 'Make it work first' principle with Playwright testing",
+  "author": {
+    "name": "Sergei Zhilin"
+  },
+  "repository": "https://github.com/ZhilinS/cc-plugins",
+  "keywords": [
+    "ui",
+    "frontend",
+    "playwright",
+    "ui testing",
+    "user interface",
+    "user experience"
+  ]
+}
