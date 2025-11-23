@@ -1,0 +1,43 @@
+---
+favorite_fonts:
+  - "Authentic Sans"
+  - "Departure Mono"
+  - "GT Flexa"
+  - "Switzer"
+  - "Sohne"
+
+color_preferences:
+  - "Bold primaries with sharp accents"
+  - "Dark mode with vibrant highlights"
+  - "Inspired by IDE themes (Tokyo Night, Nord, Dracula)"
+
+screenshot_references:
+  - path: "design-refs/example1.png"
+    notes: "Love the bold color usage and geometric patterns"
+  - path: "design-refs/example2.png"
+    notes: "Excellent typography hierarchy and motion design"
+
+framework_preference: "React"
+---
+
+# UI Designer Settings
+
+This file customizes the UI Designer plugin for your preferences.
+
+## How to Use
+
+1. Copy this file to `.claude/ui-designer.local.md` in your project
+2. Customize the YAML frontmatter with your preferences
+3. Add screenshot references to your project
+4. The plugin will automatically use these settings
+
+## Screenshot References
+
+Place your reference screenshots in your project (e.g., `design-refs/` directory) and reference them with relative paths above. The plugin will:
+- Analyze these screenshots when creating UI
+- Compare generated UI against these references
+- Extract design patterns and aesthetics from them
+
+## Notes Section
+
+Use this section below the frontmatter to add any additional context about your design preferences, brand guidelines, or specific aesthetic directions.
