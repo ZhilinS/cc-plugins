@@ -3,7 +3,17 @@
   "displayName": "CC Plugins Marketplace",
   "description": "A curated marketplace for Claude Code plugins, skills, and extensions",
   "version": "1.0.0",
-  "author": "CC Plugins Community",
+  "owner": {
+    "name": "Sergey Zhilin",
+    "email": "zhilin.job@gmail.com"
+  },
   "repository": "https://github.com/ZhilinS/cc-plugins",
-  "plugins": []
+  "plugins": [
+    {
+      "name": "ui-designer",
+      "description": "Create beautiful, distinctive UIs that avoid generic AI aesthetics",
+      "source": "./plugins/ui-designer",
+      "category": "development"
+    }
+  ]
 }
