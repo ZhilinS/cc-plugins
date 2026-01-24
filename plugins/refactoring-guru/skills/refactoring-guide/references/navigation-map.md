@@ -21,20 +21,26 @@ references/
 │       ├── hexagonal_ddd.md
 │       ├── fastapi_web.md
 │       └── grpc_proxy.md
-└── swift/
-    ├── principles.md          # SwiftUI & iOS 17+ principles
-    ├── elements/              # Code element patterns
-    │   ├── view_structure.md
-    │   ├── viewmodel_design.md
-    │   ├── async_patterns.md
-    │   ├── error_handling.md
-    │   ├── naming.md
-    │   ├── protocols.md
-    │   └── uikit_interop.md
-    └── architecture/          # App architecture patterns
-        ├── mvvm_swiftui.md
-        ├── navigation.md
-        └── dependency_injection.md
+├── swift/
+│   ├── principles.md          # SwiftUI & iOS 17+ principles
+│   ├── elements/              # Code element patterns
+│   │   ├── view_structure.md
+│   │   ├── viewmodel_design.md
+│   │   ├── async_patterns.md
+│   │   ├── error_handling.md
+│   │   ├── naming.md
+│   │   ├── protocols.md
+│   │   └── uikit_interop.md
+│   └── architecture/          # App architecture patterns
+│       ├── mvvm_swiftui.md
+│       ├── navigation.md
+│       └── dependency_injection.md
+└── javascript/
+    ├── principles.md          # ES6+ functional-leaning principles
+    └── elements/              # Code element patterns
+        ├── naming.md
+        ├── function_structure.md
+        └── async_patterns.md
 ```
 
 ## File Descriptions
@@ -77,6 +83,28 @@ SwiftUI and iOS 17+ patterns using `@Observable` macro:
 | `naming.md` | No-is-prefix booleans, context-driven names, collection plurals, verb prefixes, protocol naming, constants | Naming variables, methods, types |
 | `protocols.md` | Protocol per dependency, default implementations, composition, mocking, associated types vs generics, protocol witness | Designing protocols, dependency injection, testing |
 | `uikit_interop.md` | UIViewRepresentable, Coordinator pattern, UIViewControllerRepresentable, UIHostingController, retain cycle avoidance | Bridging UIKit and SwiftUI |
+
+### JavaScript Elements
+
+ES6+ patterns with functional-leaning philosophy:
+
+| File | Content | Read when... |
+|------|---------|--------------|
+| `naming.md` | Context-driven names, no-is-prefix booleans, short names, camelCase/PascalCase/SCREAMING_SNAKE, action prefixes | Naming variables, functions, constants |
+| `function_structure.md` | Arrow functions, single responsibility, early returns, pure functions, extraction patterns | Structuring functions, refactoring method bodies |
+| `async_patterns.md` | async/await, Promise.all, Promise.allSettled, error boundaries, timeouts, async iteration | Working with Promises and async code |
+
+### JavaScript Principles
+
+Functional-leaning ES6+ philosophy:
+- Const by default (never var, let only when needed)
+- Pure functions first (same input → same output)
+- Immutability over mutation (spread operators, new objects)
+- Composition over inheritance (factory functions over classes)
+- Explicit over magic (avoid this, explicit checks)
+- Early returns (guard clauses, flat code)
+
+**Read when:** Starting any JavaScript refactoring to understand overall philosophy.
 
 ### Swift Architecture
 
@@ -124,6 +152,10 @@ Service-level patterns:
 | **Swift navigation** | `swift/architecture/navigation.md` |
 | **Swift dependency injection** | `swift/architecture/dependency_injection.md` |
 | **Swift ViewModel testing** | `swift/architecture/mvvm_swiftui.md` + `swift/architecture/dependency_injection.md` |
+| **JavaScript refactoring** | `javascript/principles.md` + `javascript/elements/naming.md` |
+| **JS function cleanup** | `javascript/elements/function_structure.md` |
+| **JS async code** | `javascript/elements/async_patterns.md` |
+| **JS naming** | `javascript/elements/naming.md` |
 
 ## Adding New Languages
 
