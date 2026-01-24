@@ -14,6 +14,12 @@
       "description": "Create beautiful, distinctive UIs that avoid generic AI aesthetics",
       "source": "./plugins/ui-designer",
       "category": "development"
+    },
+    {
+      "name": "refactoring-guru",
+      "description": "Write a perfect code using provided code rules and samples",
+      "source": "./plugins/refactoring-guru",
+      "category": "development"
     }
   ]
 }
