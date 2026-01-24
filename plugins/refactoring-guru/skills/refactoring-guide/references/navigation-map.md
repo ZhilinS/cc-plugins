@@ -32,6 +32,7 @@ references/
     │   ├── protocols.md
     │   └── uikit_interop.md
     └── architecture/          # App architecture patterns
+        └── mvvm_swiftui.md
 ```
 
 ## File Descriptions
@@ -75,6 +76,14 @@ SwiftUI and iOS 17+ patterns using `@Observable` macro:
 | `protocols.md` | Protocol per dependency, default implementations, composition, mocking, associated types vs generics, protocol witness | Designing protocols, dependency injection, testing |
 | `uikit_interop.md` | UIViewRepresentable, Coordinator pattern, UIViewControllerRepresentable, UIHostingController, retain cycle avoidance | Bridging UIKit and SwiftUI |
 
+### Swift Architecture
+
+App-level patterns for SwiftUI applications:
+
+| File | Content | Read when... |
+|------|---------|--------------|
+| `mvvm_swiftui.md` | **Primary architecture** - MVVM with @Observable, directory structure, ViewModel pattern, state enums, lifecycle management, testing | Any structural refactoring, setting up new SwiftUI app |
+
 ### Architecture
 
 Service-level patterns:
@@ -107,6 +116,8 @@ Service-level patterns:
 | **Swift naming** | `swift/elements/naming.md` |
 | **Swift protocols/DI** | `swift/elements/protocols.md` |
 | **UIKit interop** | `swift/elements/uikit_interop.md` |
+| **Swift app structure** | `swift/architecture/mvvm_swiftui.md` + `swift/principles.md` |
+| **Swift ViewModel testing** | `swift/architecture/mvvm_swiftui.md` |
 
 ## Adding New Languages
 
