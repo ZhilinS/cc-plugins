@@ -28,7 +28,8 @@ references/
     │   ├── viewmodel_design.md
     │   ├── async_patterns.md
     │   ├── error_handling.md
-    │   └── naming.md
+    │   ├── naming.md
+    │   └── protocols.md
     └── architecture/          # App architecture patterns
 ```
 
@@ -70,6 +71,7 @@ SwiftUI and iOS 17+ patterns using `@Observable` macro:
 | `async_patterns.md` | async let, TaskGroup, actors, @MainActor, cancellation, AsyncSequence, timeouts | Working with Swift Concurrency |
 | `error_handling.md` | Typed error enums, LocalizedError, Result type, throw vs optional, guard, do-catch specificity | Error handling and validation |
 | `naming.md` | No-is-prefix booleans, context-driven names, collection plurals, verb prefixes, protocol naming, constants | Naming variables, methods, types |
+| `protocols.md` | Protocol per dependency, default implementations, composition, mocking, associated types vs generics, protocol witness | Designing protocols, dependency injection, testing |
 
 ### Architecture
 
@@ -101,6 +103,7 @@ Service-level patterns:
 | **Swift async code** | `swift/elements/async_patterns.md` |
 | **Swift error handling** | `swift/elements/error_handling.md` |
 | **Swift naming** | `swift/elements/naming.md` |
+| **Swift protocols/DI** | `swift/elements/protocols.md` |
 
 ## Adding New Languages
 
