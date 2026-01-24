@@ -32,7 +32,9 @@ references/
     │   ├── protocols.md
     │   └── uikit_interop.md
     └── architecture/          # App architecture patterns
-        └── mvvm_swiftui.md
+        ├── mvvm_swiftui.md
+        ├── navigation.md
+        └── dependency_injection.md
 ```
 
 ## File Descriptions
@@ -83,6 +85,8 @@ App-level patterns for SwiftUI applications:
 | File | Content | Read when... |
 |------|---------|--------------|
 | `mvvm_swiftui.md` | **Primary architecture** - MVVM with @Observable, directory structure, ViewModel pattern, state enums, lifecycle management, testing | Any structural refactoring, setting up new SwiftUI app |
+| `navigation.md` | NavigationStack, NavigationPath, programmatic navigation, NavigationSplitView, deep linking | Implementing navigation flows |
+| `dependency_injection.md` | Protocols at boundaries, initializer injection, Environment keys, dependency containers, preview/test configuration, lazy initialization | Setting up DI, testing, preview configurations |
 
 ### Architecture
 
@@ -117,7 +121,9 @@ Service-level patterns:
 | **Swift protocols/DI** | `swift/elements/protocols.md` |
 | **UIKit interop** | `swift/elements/uikit_interop.md` |
 | **Swift app structure** | `swift/architecture/mvvm_swiftui.md` + `swift/principles.md` |
-| **Swift ViewModel testing** | `swift/architecture/mvvm_swiftui.md` |
+| **Swift navigation** | `swift/architecture/navigation.md` |
+| **Swift dependency injection** | `swift/architecture/dependency_injection.md` |
+| **Swift ViewModel testing** | `swift/architecture/mvvm_swiftui.md` + `swift/architecture/dependency_injection.md` |
 
 ## Adding New Languages
 
