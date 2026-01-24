@@ -29,7 +29,8 @@ references/
     │   ├── async_patterns.md
     │   ├── error_handling.md
     │   ├── naming.md
-    │   └── protocols.md
+    │   ├── protocols.md
+    │   └── uikit_interop.md
     └── architecture/          # App architecture patterns
 ```
 
@@ -72,6 +73,7 @@ SwiftUI and iOS 17+ patterns using `@Observable` macro:
 | `error_handling.md` | Typed error enums, LocalizedError, Result type, throw vs optional, guard, do-catch specificity | Error handling and validation |
 | `naming.md` | No-is-prefix booleans, context-driven names, collection plurals, verb prefixes, protocol naming, constants | Naming variables, methods, types |
 | `protocols.md` | Protocol per dependency, default implementations, composition, mocking, associated types vs generics, protocol witness | Designing protocols, dependency injection, testing |
+| `uikit_interop.md` | UIViewRepresentable, Coordinator pattern, UIViewControllerRepresentable, UIHostingController, retain cycle avoidance | Bridging UIKit and SwiftUI |
 
 ### Architecture
 
@@ -104,6 +106,7 @@ Service-level patterns:
 | **Swift error handling** | `swift/elements/error_handling.md` |
 | **Swift naming** | `swift/elements/naming.md` |
 | **Swift protocols/DI** | `swift/elements/protocols.md` |
+| **UIKit interop** | `swift/elements/uikit_interop.md` |
 
 ## Adding New Languages
 
