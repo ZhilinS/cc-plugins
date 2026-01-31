@@ -1,11 +1,16 @@
 ---
 name: refactoring-guru
-description: Use when refactoring code, improving code quality, cleaning up code, writing production-quality code, or applying coding standards. Provides methodology and reference materials for systematic refactoring.
+description: Use when refactoring code, improving code quality, cleaning up code, writing production-quality code, or applying coding standards
+argument-hint: [target]
 ---
 
 # Refactoring Guru
 
 Methodology-driven refactoring with curated code standards.
+
+**Target:** $ARGUMENTS
+
+If a target is specified, focus on that target and skip irrelevant phases. Otherwise, run full methodology.
 
 ## Step 1: Read the Navigation Map
 
