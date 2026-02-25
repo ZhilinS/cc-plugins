@@ -1,8 +1,8 @@
 # View Structure
 
-## Keep Views Under 50 Lines
+## Extract Subviews When Structure Gets Lost
 
-Extract subviews when a view grows beyond 50 lines. Large views become hard to reason about and hide the overall structure.
+Extract subviews when a view's overall structure becomes hard to scan. The goal is readability — you should be able to see what a view does at a glance.
 
 ```swift
 // Bad - monolithic view with everything inline

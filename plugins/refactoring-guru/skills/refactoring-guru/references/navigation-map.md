@@ -76,11 +76,11 @@ SwiftUI and iOS 17+ patterns using `@Observable` macro:
 
 | File | Content | Read when... |
 |------|---------|--------------|
-| `view_structure.md` | View composition, computed properties, @ViewBuilder, subview extraction | Structuring SwiftUI views |
+| `view_structure.md` | View composition, subview extraction, computed properties, @ViewBuilder | Structuring SwiftUI views |
 | `viewmodel_design.md` | @Observable ViewModels, private(set), actions as methods, .task lifecycle, ViewState enum, DI | Designing ViewModels |
 | `async_patterns.md` | async let, TaskGroup, actors, @MainActor, cancellation, AsyncSequence, timeouts | Working with Swift Concurrency |
 | `error_handling.md` | Typed error enums, LocalizedError, Result type, throw vs optional, guard, do-catch specificity | Error handling and validation |
-| `naming.md` | No-is-prefix booleans, context-driven names, collection plurals, verb prefixes, protocol naming, constants | Naming variables, methods, types |
+| `naming.md` | No-is-prefix booleans, concise context-driven names, collection plurals, verb prefixes, protocol naming, constants | Naming variables, methods, types |
 | `protocols.md` | Protocol per dependency, default implementations, composition, mocking, associated types vs generics, protocol witness | Designing protocols, dependency injection, testing |
 | `uikit_interop.md` | UIViewRepresentable, Coordinator pattern, UIViewControllerRepresentable, UIHostingController, retain cycle avoidance | Bridging UIKit and SwiftUI |
 

@@ -158,6 +158,98 @@ struct Order {
 }
 ```
 
+## Single Responsibility
+
+Each type should have one reason to change. When a class handles multiple concerns, split it. Signs a type is doing too much: it has unrelated groups of properties, methods that don't use the same state, or you struggle to name it without "and" or "Manager."
+
+```swift
+// Bad - service handles fetching, caching, and formatting
+class UserService {
+    private let session: URLSession
+    private var cache: [String: User] = [:]
+    private let dateFormatter = DateFormatter()
+
+    func fetch(id: String) async throws -> User { }
+    func cacheUser(_ user: User) { }
+    func evictCache() { }
+    func formatJoinDate(_ user: User) -> String { }
+    func formatDisplayName(_ user: User) -> String { }
+}
+
+// Good - split by concern
+class UserService {
+    private let session: URLSession
+
+    func fetch(id: String) async throws -> User { }
+}
+
+class UserCache {
+    private var storage: [String: User] = [:]
+
+    func get(_ id: String) -> User? { storage[id] }
+    func set(_ user: User) { storage[user.id] = user }
+    func evict() { storage.removeAll() }
+}
+
+struct UserFormatter {
+    func joinDate(_ user: User) -> String { }
+    func displayName(_ user: User) -> String { }
+}
+```
+
+Apply at every level:
+- **Models** — pure data, no business logic or formatting
+- **Services** — one domain area (fetching users, not fetching + caching + formatting)
+- **ViewModels** — one screen's state and actions
+- **Views** — one visual concern (extract subviews when structure gets lost)
+
+## Dense Method Bodies
+
+In non-view types (services, ViewModels, repositories, models), method bodies have no empty lines and no inline comments. If a method needs blank lines to separate "sections," it's doing too much — extract methods instead. If it needs comments to explain what's happening, the code isn't clear enough — rename things.
+
+This does not apply to SwiftUI view bodies, which are declarative and benefit from visual grouping.
+
+```swift
+// Bad - empty lines and comments breaking up the flow
+func checkout() async throws -> Order {
+    // Validate the cart
+    guard !cart.items.isEmpty else {
+        throw CartError.empty
+    }
+
+    // Calculate totals
+    let subtotal = cart.items.reduce(0) { $0 + $1.price }
+    let tax = subtotal * taxRate
+    let total = subtotal + tax
+
+    // Create the order
+    let order = Order(items: cart.items, total: total)
+
+    // Save and return
+    try await repository.save(order)
+    return order
+}
+
+// Good - dense, reads top to bottom, no interruptions
+func checkout() async throws -> Order {
+    guard !cart.items.isEmpty else { throw CartError.empty }
+    let subtotal = cart.items.reduce(0) { $0 + $1.price }
+    let total = subtotal + subtotal * taxRate
+    let order = Order(items: cart.items, total: total)
+    try await repository.save(order)
+    return order
+}
+
+// Good - if logic is complex, extract methods instead of adding comments
+func processPayment(_ payment: Payment) async throws -> Receipt {
+    let validated = try validate(payment)
+    let charged = try await charge(validated)
+    let receipt = try buildReceipt(charged)
+    try await notify(receipt)
+    return receipt
+}
+```
+
 ## Fail Fast, Recover Gracefully
 
 Validate at system boundaries. Use typed errors for recoverable failures. Use preconditions and assertions for programmer errors.

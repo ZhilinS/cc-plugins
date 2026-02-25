@@ -1,5 +1,5 @@
 {
   "name": "refactoring-guru",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Language-specific code style rules, patterns, and architecture guidance. Human-curated best practices that go beyond linter rules."
 }

@@ -62,44 +62,70 @@ var enabled: Bool     // Is it enabled? Yes, it's enabled.
 var selected: Bool    // Is it selected? Yes, it's selected.
 ```
 
-## Context Gives Meaning to Generic Names
+## Concise Names — Let Context Do the Work
 
-Function context provides meaning to generic names. Variables like `request`, `items`, or `result` are clear within a focused function but unclear in generic contexts.
+Names exist in a hierarchy of context. Each level of nesting provides meaning, so inner names should be shorter. Repeating context that's already visible is noise.
+
+**Context hierarchy:**
+- **Class/struct name** provides context for its fields and methods
+- **Class + method name** provides context for arguments and local variables
+- The more context available, the shorter the name should be
 
 ```swift
-// Bad - generic names in generic context
-class DataProcessor {
-    func process() async throws {
-        let request = buildRequest()  // Request for what?
-        let items = fetch(request)    // Items of what type?
-        for item in items {
-            handle(item)              // Handle how?
-        }
-    }
-}
-
-// Good - context makes generic names meaningful
+// Bad - names repeat their context
 class UserService {
-    func fetchUsers() async throws -> [User] {
-        let request = URLRequest(url: usersEndpoint)  // Clear: request for users
-        let users = try await session.fetch(request)   // Clear: fetching users
-        return users
+    var userCache: [String: User] = [:]       // "user" is redundant — we're in UserService
+
+    func fetchUserById(_ userId: String) async throws -> User {  // "User" and "id" redundant
+        let userRequest = buildUserRequest(userId)                // "user" everywhere
+        let fetchedUser = try await session.fetch(userRequest)
+        return fetchedUser
     }
 }
 
-// Good - parameter context clarifies local names
+// Good - context provides meaning, names stay concise
+class UserService {
+    var cache: [String: User] = [:]           // UserService.cache — obviously user cache
+
+    func fetch(id: String) async throws -> User {  // UserService.fetch(id:) — clear
+        let request = URLRequest(url: endpoint)     // Inside fetch — obviously a fetch request
+        return try await session.fetch(request)
+    }
+}
+```
+
+```swift
+// Bad - verbose names at every level
+class OrderRepository {
+    func saveOrderToDatabase(_ order: Order) async throws {
+        let orderData = try encodeOrder(order)
+        let databaseConnection = try await pool.acquire()
+        try await databaseConnection.insert(orderData, into: "orders")
+    }
+}
+
+// Good - each name is just enough for its scope
+class OrderRepository {
+    func save(_ order: Order) async throws {       // OrderRepository.save — clear
+        let data = try encode(order)                // Inside save — obviously order data
+        let connection = try await pool.acquire()   // Inside save — obviously db connection
+        try await connection.insert(data, into: "orders")
+    }
+}
+```
+
+```swift
+// Good - arguments are concise when method name provides context
 func updateCart(with items: [CartItem]) {
-    for item in items {          // Clear: cart item
+    for item in items {
         inventory.reserve(item)
     }
 }
 
-// Good - function name provides context
-func parseUserResponse(_ data: Data) throws -> User {
-    let json = try JSONSerialization.jsonObject(with: data)  // Clear: user JSON
-    let user = try decode(json)                               // Clear: the user
-    return user
-}
+// Good - single-letter names in tight scopes
+users.filter { $0.active }
+items.map { $0.price }
+entries.sorted { $0.date < $1.date }
 ```
 
 ## Collection Plurals
