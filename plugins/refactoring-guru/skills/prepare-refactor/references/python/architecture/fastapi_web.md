@@ -1,6 +1,6 @@
 # FastAPI Inbound Adapter Patterns
 
-Patterns for implementing REST API inbound adapters with FastAPI. For overall architecture structure, see `hexagonal_ddd.md`.
+Patterns for implementing REST API inbound adapters with FastAPI.
 
 ## Thin Routes Pattern
 

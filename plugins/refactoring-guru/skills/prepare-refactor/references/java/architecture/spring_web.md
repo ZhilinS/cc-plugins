@@ -1,6 +1,6 @@
 # Spring Boot Web Service Patterns
 
-Patterns for implementing REST API controllers with Spring Boot. For overall architecture structure, see `hexagonal_ddd.md`.
+Patterns for implementing REST API controllers with Spring Boot.
 
 ## Prefer WebFlux Over Spring MVC
 

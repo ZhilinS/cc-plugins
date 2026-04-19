@@ -1,6 +1,6 @@
 # gRPC Outbound Adapter Patterns
 
-Patterns for implementing gRPC client adapters. For overall architecture structure, see `hexagonal_ddd.md`.
+Patterns for implementing gRPC client adapters.
 
 ## Adapter Structure
 
