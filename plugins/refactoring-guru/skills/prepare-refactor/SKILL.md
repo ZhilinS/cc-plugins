@@ -16,7 +16,7 @@ digraph refactor_flow {
 
     subgraph cluster_explore {
         label="Stage 1a: Exploration (sub-agent)";
-        explore [label="Spawn: Exploration Agent\n→ language, file list,\n   detected arch pattern,\n   reference paths"];
+        explore [label="Spawn: Exploration Agent\n→ language, file list,\n   resolved reference paths"];
     }
 
     subgraph cluster_arch {
@@ -77,9 +77,25 @@ Reference files are resolved from three layers (highest priority first):
 3. **Plugin:**  `${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references/`
    (fallback if env var missing: `ls -d $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references/ | sort -V | tail -1`)
 
-**Resolution rule — directory-replace, per category.** For each logical path, walk the layers top-down. The first layer that contains the path owns it fully. If the path is a directory, ALL files inside belong to that layer — contents of the same directory in lower-priority layers are ignored. Resolution happens per category (`principles.md`, `elements/`, `architecture/`), not per language: project can override `python/elements/` without touching `python/architecture/`.
+Each layer has the same shape:
 
-**Adding a new language or custom rules** — create `<layer>/<language>/{principles.md,elements/*.md,architecture/*.md}` at the user or project layer. The exploration agent picks it up automatically; no plugin edits needed.
+```
+references/
+├── <language>/            # e.g. python, java, swift
+│   ├── principles.md
+│   ├── elements/*.md
+│   └── architecture/*.md
+└── common/                # language-agnostic rules (same sub-layout)
+    ├── principles.md
+    ├── elements/*.md
+    └── architecture/*.md
+```
+
+**Resolution rule — directory-replace, per category.** For each logical path (`<tree>/principles.md`, `<tree>/elements/`, `<tree>/architecture/` where `<tree>` is the language name or `common`), walk the layers top-down. The first layer that contains the path owns it fully. If the path is a directory, ALL files inside belong to that layer — contents of the same directory in lower-priority layers are ignored. Resolution happens per category, so a project can override `python/elements/` without touching `python/architecture/` or `common/`.
+
+**No pattern detection.** The exploration agent includes every file inside the winning layer's `elements/` and `architecture/` directories. If you want different rules for different architectures, create another language-like tree (e.g. `frontend/`, `mobile/`) or put pattern-specific rules in `common/`.
+
+**Adding rules** — drop files under `<layer>/<tree>/{principles.md, elements/*.md, architecture/*.md}` at the user or project layer. The exploration agent picks them up automatically; no plugin edits needed.
 
 ## Stage 1: Review (sub-agent driven)
 
@@ -118,16 +134,9 @@ User context:
 
 Your job:
 
-1. Identify the programming language of the code being refactored (python, java, or other name).
+1. Identify the programming language of the code being refactored (python, java, swift, or other name).
 2. List all files in scope (the files the user wants refactored).
-3. Detect the architecture pattern. Look at directory structure, imports, class/module names:
-   - hexagonal_ddd (ports & adapters: domain, application, infrastructure/adapters)
-   - fastapi_web (FastAPI routes as primary entry point)
-   - grpc_proxy (gRPC client/server, proto files)
-   - spring_web (Spring Boot REST controllers)
-   - unknown (cannot determine)
-
-4. Resolve reference files from the layered reference stack.
+3. Resolve reference files from the layered reference stack.
 
    Layer roots, priority high → low:
    a) Project: "$(pwd)/.claude/refactoring-guru/references"
@@ -136,41 +145,45 @@ Your job:
       (if CLAUDE_PLUGIN_ROOT is empty, fall back to:
        ls -d $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references 2>/dev/null | sort -V | tail -1)
 
-   Resolution rule — directory-replace, per category: walk layers top-down; the first layer that contains the path owns it fully. If the path is a directory, ALL files inside come from that layer only (lower layers' contents at the same path are ignored). Resolution is per category — project can own `<lang>/elements/` without affecting `<lang>/architecture/`.
+   Resolve two trees, independently: the detected `<language>` tree and `common`. For each tree, resolve three categories: `principles.md`, `elements/`, `architecture/`.
 
-   Discovery convention for the detected `<language>`:
-   - `<language>/principles.md` — include if found
-   - `<language>/elements/` — include ALL *.md files from the owning layer
-   - `<language>/architecture/<detected_pattern>.md` — include if found and pattern ≠ unknown
-   - `<language>/architecture/hexagonal_ddd.md` — include if found (baseline architecture)
-   - Pattern = unknown → include ALL *.md files in `<language>/architecture/` from the owning layer
+   Resolution rule — directory-replace, per category: walk layers top-down; the first layer that contains the path owns it fully. If the path is a directory, ALL files inside come from that layer only (lower layers' contents at the same path are ignored). Resolution is per category — project can own `<lang>/elements/` without affecting `<lang>/architecture/` or anything in `common/`.
 
-   Procedure:
-   a) For each layer (project, user, plugin in order), check whether the root exists and whether `<language>/` exists inside it.
-   b) Resolve `principles.md`: first layer whose `<language>/principles.md` exists wins.
-   c) Resolve `elements/`: first layer whose `<language>/elements/` directory exists wins; list every *.md file inside it.
-   d) Resolve `architecture/`: first layer whose `<language>/architecture/` directory exists wins; filter by detected pattern per convention above.
-   e) Output ABSOLUTE paths only. If a category is not found in any layer, omit it (no placeholders).
+   Procedure, run once for `<tree>=<language>` and once for `<tree>=common`:
+   a) `<tree>/principles.md` — first layer whose `<tree>/principles.md` exists wins; include that file.
+   b) `<tree>/elements/` — first layer whose `<tree>/elements/` directory exists wins; include every *.md inside it.
+   c) `<tree>/architecture/` — first layer whose `<tree>/architecture/` directory exists wins; include every *.md inside it.
+   d) If a category (or the whole tree) is not found in any layer, omit it. No placeholders.
+
+   Output ABSOLUTE paths only.
 
 Return an Exploration Report in this format:
 
 ## Exploration Report
 
-**Language:** [python | java | other]
-**Detected pattern:** [hexagonal_ddd | fastapi_web | grpc_proxy | spring_web | unknown]
+**Language:** [python | java | swift | other]
 **Files in scope:**
 - path/to/file1.py
 - path/to/file2.py
 
-**Reference paths (principles):**
+**Reference paths (<language>/principles):**
 - /abs/path/to/<language>/principles.md  [layer: plugin|user|project]
 
-**Reference paths (architecture):**
+**Reference paths (<language>/architecture):**
 - /abs/path/to/<language>/architecture/<file>.md  [layer: ...]
 
-**Reference paths (elements):**
+**Reference paths (<language>/elements):**
 - /abs/path/to/<language>/elements/<file>.md  [layer: ...]
 - ... (every file in the owning elements dir)
+
+**Reference paths (common/principles):**
+- /abs/path/to/common/principles.md  [layer: ...]        # omit section if none found
+
+**Reference paths (common/architecture):**
+- /abs/path/to/common/architecture/<file>.md  [layer: ...]
+
+**Reference paths (common/elements):**
+- /abs/path/to/common/elements/<file>.md  [layer: ...]
 ```
 
 Receive the Exploration Report. Use it to configure the next sub-agents.
@@ -189,7 +202,7 @@ Files in scope:
 [LIST FILES FROM EXPLORATION REPORT]
 
 Reference files to check (read each one):
-[LIST ARCHITECTURE + PRINCIPLES REFERENCE PATHS FROM EXPLORATION REPORT]
+[LIST THE <language>/architecture, <language>/principles, common/architecture, AND common/principles PATHS FROM THE EXPLORATION REPORT]
 
 For EACH reference file:
 1. Read the file.
@@ -230,7 +243,7 @@ If the Architecture Agent reports violations:
 
 ### Stage 1c: Elements Agents (parallel)
 
-Spawn sub-agents **in parallel** using the Task tool. Each covers a subset of element references. Decide the number of agents and how to batch references based on which reference files exist for the detected language (from the Exploration Report). Aim to balance work evenly across agents.
+Spawn sub-agents **in parallel** using the Task tool. Each covers a subset of element references from BOTH `<language>/elements/` and `common/elements/` (if present). Decide the number of agents and how to batch references based on how many reference files the Exploration Report returned. Aim to balance work evenly across agents.
 
 **Per-agent prompt template** (fill in values from the Exploration Report):
 
@@ -355,7 +368,7 @@ References: /abs/path/to/<language>/elements/class_body.md
 | Stage | What happens | Who does it |
 |-------|-------------|-------------|
 | Pre-check | Tests exist, coverage ≥ 80%, all passing | Main agent |
-| 1a: Exploration | Language, files, arch pattern, reference paths | Exploration sub-agent |
+| 1a: Exploration | Language, files, resolved reference paths (language + common) | Exploration sub-agent |
 | 1b: Architecture | Check arch refs rule-by-rule, report violations | Architecture sub-agent |
 | 1c: Elements | Check element refs rule-by-rule, report violations | 3 parallel sub-agents |
 | 2: Save Plan | Merge reports, save plan file, commit | Main agent |
