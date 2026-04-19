@@ -20,13 +20,13 @@ No violations found.
 ## Phase 3: Elements
 
 ### [Rule Name from reference ## heading]
-**Reference:** `references/{lang}/elements/{file}.md`
+**Reference:** `/abs/path/to/<language>/elements/<file>.md`
 **Files:** `path/to/file.py:12-30`
 **Violation:** [What's wrong]
 **Fix:** [What to do]
 
 ### [Next Rule Name]
-**Reference:** `references/{lang}/elements/{file}.md`
+**Reference:** `/abs/path/to/<language>/elements/<file>.md`
 **Files:** `path/to/other_file.py:5-15`
 **Violation:** [What's wrong]
 **Fix:** [What to do]
@@ -34,7 +34,7 @@ No violations found.
 ## Phase 4: Polish
 
 ### [Rule Name]
-**Reference:** `references/{lang}/elements/{file}.md`
+**Reference:** `/abs/path/to/<language>/elements/<file>.md`
 **Files:** `path/to/file.py:5`
 **Violation:** [What's wrong]
 **Fix:** [What to do]

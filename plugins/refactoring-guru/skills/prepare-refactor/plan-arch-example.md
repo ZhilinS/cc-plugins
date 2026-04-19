@@ -16,13 +16,13 @@ Status: [PASS / NEEDS WORK]
 ## Phase 2: Architecture
 
 ### [Rule Name from reference ## heading]
-**Reference:** `references/{lang}/architecture/{file}.md`
+**Reference:** `/abs/path/to/<language>/architecture/<file>.md`
 **Files:** `path/to/file.py:45-60`
 **Violation:** [What's wrong]
 **Fix:** [What to do]
 
 ### [Next Rule Name]
-**Reference:** `references/{lang}/architecture/{file}.md`
+**Reference:** `/abs/path/to/<language>/architecture/<file>.md`
 **Files:** `path/to/other_file.py:10-25`
 **Violation:** [What's wrong]
 **Fix:** [What to do]
