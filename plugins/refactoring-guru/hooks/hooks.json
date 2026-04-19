@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "NAV=$(ls $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references/navigation-map.md 2>/dev/null | sort -V | tail -1); printf \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PostToolUse\\\",\\\"additionalContext\\\":\\\"CODE WRITTEN: Verify against refactoring-guru references. Read %s to find the relevant reference for your language, then read and fix any deviations.\\\"}}\" \"$NAV\"",
+            "statusMessage": "Checking refactoring-guru references..."
+          }
+        ]
+      }
+    ]
+  }
+}
