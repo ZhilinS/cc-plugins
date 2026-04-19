@@ -22,4 +22,4 @@ The exploration agent does not detect architecture patterns. Every file in the w
 - **Adding a new language** — create `references/<language>/` with `principles.md`, `elements/*.md`, and `architecture/*.md`. The exploration agent picks it up automatically (see `skills/prepare-refactor/SKILL.md` → "Stage 1a"). Same procedure at user/project layers.
 - **Adding cross-language rules** — drop them under `references/common/{principles.md, elements/*.md, architecture/*.md}`. They are loaded alongside the language tree for every invocation.
 - **Adding, removing, or renaming files** — no plugin-side wiring needed; the exploration agent enumerates files from the filesystem.
-- **Cross-tree references inside reference bodies** — if one reference file points at another (e.g. `fastapi_web.md` → `hexagonal_ddd.md`), prefer language-relative or `common/` paths. Do NOT hardcode absolute user paths.
+- **Don't cross-reference other reference files from inside a reference body.** The Architecture Agent already receives every `architecture/*` + `principles.md` path (language + common) in one prompt; pointers between files add noise and break if a layer overrides one side.

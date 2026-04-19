@@ -1,6 +1,6 @@
 # gRPC Client Adapter Patterns
 
-Patterns for implementing gRPC client adapters in Java. For overall architecture structure, see `../../common/architecture/hexagonal_ddd.md`.
+Patterns for implementing gRPC client adapters in Java.
 
 ## Adapter Structure
 
