@@ -68,6 +68,19 @@ digraph refactor_flow {
 }
 ```
 
+## Layered References
+
+Reference files are resolved from three layers (highest priority first):
+
+1. **Project:** `$PROJECT_ROOT/.claude/refactoring-guru/references/`
+2. **User:**    `$HOME/.claude/refactoring-guru/references/`
+3. **Plugin:**  `${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references/`
+   (fallback if env var missing: `ls -d $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references/ | sort -V | tail -1`)
+
+**Resolution rule — directory-replace, per category.** For each logical path, walk the layers top-down. The first layer that contains the path owns it fully. If the path is a directory, ALL files inside belong to that layer — contents of the same directory in lower-priority layers are ignored. Resolution happens per category (`principles.md`, `elements/`, `architecture/`), not per language: project can override `python/elements/` without touching `python/architecture/`.
+
+**Adding a new language or custom rules** — create `<layer>/<language>/{principles.md,elements/*.md,architecture/*.md}` at the user or project layer. The exploration agent picks it up automatically; no plugin edits needed.
+
 ## Stage 1: Review (sub-agent driven)
 
 Stage 1 is split into three sub-stages. The main agent orchestrates — it does NOT read project code files directly. All codebase reading happens inside sub-agents.
@@ -104,25 +117,40 @@ User context:
 [SCOPE AND STEERING FROM USER — paste verbatim]
 
 Your job:
-1. Identify the programming language of the code being refactored (Python, Java, or other).
+
+1. Identify the programming language of the code being refactored (python, java, or other name).
 2. List all files in scope (the files the user wants refactored).
-3. Detect the architecture pattern in use. Look at directory structure, imports, and class/module names. Choose one:
-   - hexagonal_ddd (ports & adapters layering: domain, application, infrastructure/adapters)
-   - fastapi_web (FastAPI routes as the primary entry point)
+3. Detect the architecture pattern. Look at directory structure, imports, class/module names:
+   - hexagonal_ddd (ports & adapters: domain, application, infrastructure/adapters)
+   - fastapi_web (FastAPI routes as primary entry point)
    - grpc_proxy (gRPC client/server, proto files)
    - spring_web (Spring Boot REST controllers)
    - unknown (cannot determine)
-4. Based on language and detected pattern, list the reference files that apply. Use this mapping:
 
-   Python, hexagonal_ddd → architecture/hexagonal_ddd.md + elements/*
-   Python, fastapi_web   → architecture/fastapi_web.md + architecture/hexagonal_ddd.md + elements/*
-   Python, grpc_proxy    → architecture/grpc_proxy.md + architecture/hexagonal_ddd.md + elements/*
-   Java, hexagonal_ddd   → architecture/hexagonal_ddd.md + elements/*
-   Java, spring_web      → architecture/spring_web.md + architecture/hexagonal_ddd.md + elements/*
-   Java, grpc_proxy      → architecture/grpc_proxy.md + architecture/hexagonal_ddd.md + elements/*
+4. Resolve reference files from the layered reference stack.
 
-   Elements always include all files in {language}/elements/.
-   If pattern is unknown, include all architecture files for the detected language.
+   Layer roots, priority high → low:
+   a) Project: "$(pwd)/.claude/refactoring-guru/references"
+   b) User:    "$HOME/.claude/refactoring-guru/references"
+   c) Plugin:  "${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references"
+      (if CLAUDE_PLUGIN_ROOT is empty, fall back to:
+       ls -d $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references 2>/dev/null | sort -V | tail -1)
+
+   Resolution rule — directory-replace, per category: walk layers top-down; the first layer that contains the path owns it fully. If the path is a directory, ALL files inside come from that layer only (lower layers' contents at the same path are ignored). Resolution is per category — project can own `<lang>/elements/` without affecting `<lang>/architecture/`.
+
+   Discovery convention for the detected `<language>`:
+   - `<language>/principles.md` — include if found
+   - `<language>/elements/` — include ALL *.md files from the owning layer
+   - `<language>/architecture/<detected_pattern>.md` — include if found and pattern ≠ unknown
+   - `<language>/architecture/hexagonal_ddd.md` — include if found (baseline architecture)
+   - Pattern = unknown → include ALL *.md files in `<language>/architecture/` from the owning layer
+
+   Procedure:
+   a) For each layer (project, user, plugin in order), check whether the root exists and whether `<language>/` exists inside it.
+   b) Resolve `principles.md`: first layer whose `<language>/principles.md` exists wins.
+   c) Resolve `elements/`: first layer whose `<language>/elements/` directory exists wins; list every *.md file inside it.
+   d) Resolve `architecture/`: first layer whose `<language>/architecture/` directory exists wins; filter by detected pattern per convention above.
+   e) Output ABSOLUTE paths only. If a category is not found in any layer, omit it (no placeholders).
 
 Return an Exploration Report in this format:
 
@@ -134,16 +162,15 @@ Return an Exploration Report in this format:
 - path/to/file1.py
 - path/to/file2.py
 
+**Reference paths (principles):**
+- /abs/path/to/<language>/principles.md  [layer: plugin|user|project]
+
 **Reference paths (architecture):**
-- references/{language}/architecture/{file}.md
+- /abs/path/to/<language>/architecture/<file>.md  [layer: ...]
 
 **Reference paths (elements):**
-- references/{language}/elements/class_body.md
-- references/{language}/elements/method_structure.md
-- ... (all applicable)
-
-**Reference paths (principles):**
-- references/{language}/principles.md
+- /abs/path/to/<language>/elements/<file>.md  [layer: ...]
+- ... (every file in the owning elements dir)
 ```
 
 Receive the Exploration Report. Use it to configure the next sub-agents.
@@ -178,7 +205,7 @@ Return an Architecture Violation Report in this format:
 ## Architecture Violation Report
 
 ### [Rule Name — exact ## heading from reference]
-**Reference:** references/{language}/architecture/{file}.md
+**Reference:** /abs/path/to/<language>/architecture/<file>.md
 **Files:** path/to/file.py:10-30
 **Violation:** [What is wrong]
 
@@ -233,7 +260,7 @@ Return a Violation Report in this format:
 ## Violation Report: [Agent N]
 
 ### [Rule Name — exact ## heading from reference]
-**Reference:** references/{language}/elements/{file}.md
+**Reference:** /abs/path/to/<language>/elements/<file>.md
 **Files:** path/to/file.py:10-30
 **Violation:** [What is wrong]
 
@@ -316,9 +343,11 @@ If you haven't read the relevant reference yet, read it now.
 
 **Every plan step, TaskCreate task, and sub-agent prompt MUST include full reference paths.** Sub-agents don't inherit skill context — without explicit paths, they skip rules.
 
+Use the ABSOLUTE paths from the Exploration Report verbatim. Sub-agents must never resolve layers themselves.
+
 ```
 Step 2: Refactor the UserService class
-References: references/{language}/elements/class_body.md
+References: /abs/path/to/<language>/elements/class_body.md
 ```
 
 ## Quick Reference
@@ -332,5 +361,3 @@ References: references/{language}/elements/class_body.md
 | 2: Save Plan | Merge reports, save plan file, commit | Main agent |
 | 3: Execute | In-place or `refactoring-guru:parallel-execution` | Main agent + user |
 | 4: Re-evaluate | Re-run 1b + 1c in parallel, loop until clean | Main agent |
-
-Consult the navigation map for the exact file list per language.

@@ -69,13 +69,9 @@ digraph parallel_refactor {
 
 ## Prerequisites
 
-Read the navigation map first:
+Invoke `refactoring-guru:prepare-refactor` Stage 1a (Exploration) first. The exploration agent resolves the layered reference stack (project → user → plugin) and returns ABSOLUTE paths for `principles.md`, `elements/*.md`, and the applicable `architecture/*.md` files. Use those paths verbatim throughout this skill — do NOT resolve layers yourself.
 
-```
-Read ../prepare-refactor/references/navigation-map.md
-```
-
-Identify the language and the list of reference files that apply.
+If you already have an Exploration Report from an earlier stage of the same session, reuse it instead of re-running exploration.
 
 ## Stage 1: Review (parallel, read-only)
 
@@ -87,7 +83,7 @@ Spawn one **read-only** sub-agent per reference file. Each agent checks its rule
 
 ```
 You are a code reviewer. Read this reference file:
-- ../prepare-refactor/references/{language}/elements/{file}.md
+- /abs/path/to/<language>/elements/<file>.md  (absolute path from Exploration Report)
 
 For every ## heading in the reference, check ALL of these code files against that rule:
 [list of code files in scope]
@@ -201,12 +197,12 @@ See the flow diagram at the top of this skill for the complete decision path.
 
 ## Embedding References in Sub-agent Prompts
 
-Every sub-agent prompt MUST include full paths to the reference files it needs:
+Every sub-agent prompt MUST include full ABSOLUTE paths to the reference files it needs. Use the paths from the Exploration Report verbatim — sub-agents never resolve layers themselves.
 
 ```
 Read these references first:
-- ../prepare-refactor/references/{language}/elements/class_body.md
-- ../prepare-refactor/references/{language}/elements/naming.md
+- /abs/path/to/<language>/elements/class_body.md
+- /abs/path/to/<language>/elements/naming.md
 ```
 
 Sub-agents don't inherit skill context. Without explicit paths, they skip rules.
