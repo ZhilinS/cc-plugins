@@ -1,5 +1,9 @@
 {
   "name": "refactoring-guru",
-  "version": "0.32.0",
-  "description": "Language-specific code style rules, patterns, and architecture guidance. Human-curated best practices that go beyond linter rules."
+  "version": "0.34.0",
+  "description": "Language-specific code style rules, patterns, and architecture guidance. Human-curated best practices that go beyond linter rules.",
+  "author": {
+    "name": "Sergei Zhilin",
+    "email": "zhilin.job@gmail.com"
+  }
 }
