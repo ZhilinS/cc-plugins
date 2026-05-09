@@ -1,6 +1,6 @@
 ---
 name: prepare-refactor
-description: Use when refactoring code, improving code quality, cleaning up code, writing production-quality code, or applying coding standards. Provides methodology and reference materials for systematic refactoring.
+description: Use when the user explicitly asks to refactor code, clean up a module, or run a structured code-quality pass against curated standards. Do not load for routine edits or general "write good code" requests — reference files are large and the skill is designed for dedicated refactoring sessions.
 ---
 
 # Refactoring Guru
@@ -99,7 +99,7 @@ references/
 
 ## Stage 1: Review (sub-agent driven)
 
-Stage 1 is split into three sub-stages. The main agent orchestrates — it does NOT read project code files directly. All codebase reading happens inside sub-agents.
+Stage 1 is split into three sub-stages.
 
 ### Read User Context
 
