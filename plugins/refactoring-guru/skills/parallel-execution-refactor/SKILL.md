@@ -34,6 +34,8 @@ digraph parallel_refactor {
     spawn_fix [label="Spawn fix agents\n(parallel, one per batch)\nmark items in_progress/completed"];
 
     verify_todo [label="Verify all TodoWrite\nitems completed"];
+    compile [label="Compile / type-check"];
+    lint [label="Lint / format"];
     tests [label="Run tests"];
     commit [label="Commit per phase"];
 
@@ -57,7 +59,9 @@ digraph parallel_refactor {
     arch_check -> batch [label="no"];
     batch -> spawn_fix;
     spawn_fix -> verify_todo;
-    verify_todo -> tests;
+    verify_todo -> compile;
+    compile -> lint;
+    lint -> tests;
     tests -> commit;
     commit -> reeval;
     reeval -> clean_check;
@@ -154,8 +158,12 @@ Do NOT touch files outside your assigned list.
 ### After all fix agents complete
 
 1. Verify all TodoWrite items are marked completed — any remaining items indicate missed fixes
-2. Run tests to verify nothing is broken
-3. Commit per phase (Elements commit, then Polish commit)
+2. **Compile / type-check** the codebase. Mass refactoring frequently breaks signatures, imports, or types in ways tests do not catch (especially in Python where `mypy` is opt-in). If the project ships a build/type-check command, run it and fix any failures before continuing. Examples — adapt to the actual project: `./gradlew build` or `mvn compile` (Java), `mypy <package>` (Python), `tsc --noEmit` (TypeScript), `swift build` (Swift). If no such command is configured, note it in the summary and skip — do not invent one.
+3. **Lint / format** the codebase. Mass refactoring often leaves unused imports, stale local variables, and formatting drift that a reviewer will bounce on PR. Run the project's configured linter and formatter, then auto-fix what is safe. Examples — adapt to the actual project: `ruff check --fix && ruff format` (Python), `./gradlew check` or `mvn verify -DskipTests` for Checkstyle/Spotless (Java), `eslint --fix && prettier --write` (TypeScript), `swiftlint --fix` (Swift). If lint reports issues that cannot be auto-fixed, fix them manually before continuing — do not commit lint failures.
+4. Run tests to verify nothing is broken
+5. Commit per phase (Elements commit, then Polish commit)
+
+**Discovering the right commands:** Inspect project metadata before guessing — `Makefile`, `package.json` scripts, `pyproject.toml` `[tool.*]`, `build.gradle`, `pre-commit-config.yaml`, CI workflow files. Prefer the exact command the project's CI runs. If a layered reference (e.g. `<lang>/principles.md`) names verification commands, use those.
 
 ## Final plan task: Re-evaluate
 
