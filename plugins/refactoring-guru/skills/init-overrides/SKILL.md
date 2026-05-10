@@ -1,6 +1,6 @@
 ---
 name: init-overrides
-description: Use when setting up project- or user-level overrides for refactoring-guru references. Interactively scaffolds the layered directory structure (language overrides + optional common-tree handling) with three modes per category — keep plugin defaults, customize a working copy, or disable the category entirely.
+description: Use when setting up project- or user-level overrides for refactoring-guru references. Interactively scaffolds the layered directory structure (language overrides + optional common-tree handling) with four modes per category — inherit from a lower layer, keep plugin defaults, customize a working copy, or disable the category entirely.
 ---
 
 # Init Refactoring Overrides
@@ -11,13 +11,14 @@ Interactive scaffolder for the refactoring-guru layered references system. Creat
 
 Refactoring-guru resolves references with **directory-replace per category** (see plugin `CLAUDE.md`). The first layer that contains e.g. `python/elements/` owns it **fully** — files at lower layers in that same directory are ignored.
 
-This single resolution rule has to serve three distinct user intents:
+This single resolution rule has to serve four distinct user intents:
 
-1. **Keep plugin defaults** — the user is happy with what the plugin ships. No override needed.
-2. **Customize** — the user wants to edit the rules. Override directory is seeded by copying the plugin defaults so the user edits a working copy instead of starting from zero.
-3. **Disable** — the user wants to opt out of the category entirely (e.g. `common/architecture/hexagonal_ddd.md` does not fit a Swift app). Override directory is created **empty** (just `.gitkeep`); directory-replace then resolves the category to zero rules.
+1. **Inherit from a lower layer** — when initializing at the **project** layer, the user already has overrides at the **user** layer for this category and wants those to apply to this project too. Do **not** create anything at the project layer for this category — directory-replace will then fall through to the user layer. Creating even an empty `.gitkeep` here would silently shadow the user-layer overrides. This intent is only meaningful for project-layer init when user-layer overrides exist for the same `(tree, category)`.
+2. **Keep plugin defaults** — the user is happy with what the plugin ships. No override needed.
+3. **Customize** — the user wants to edit the rules. Override directory is seeded by copying an existing baseline (user-layer overrides if available, otherwise plugin defaults) so the user edits a working copy instead of starting from zero.
+4. **Disable** — the user wants to opt out of the category entirely (e.g. `common/architecture/hexagonal_ddd.md` does not fit a Swift app). Override directory is created **empty** (just `.gitkeep`); directory-replace then resolves the category to zero rules.
 
-This skill asks for the intent per category and acts accordingly. A bare yes/no question conflates intents 2 and 3 — that is a footgun.
+This skill asks for the intent per category and acts accordingly. Conflating intents — for example, asking a yes/no question that mixes Customize and Disable, or blindly creating an empty tree that shadows user-layer overrides — is a footgun.
 
 ## Inputs (ask interactively)
 
@@ -32,19 +33,27 @@ Where should the overrides live?
 
 Resolve `$PROJECT_ROOT` from the current working directory's git root. If not in a git repo and the user picked "Project", confirm before proceeding.
 
+### 1a. Scan lower layers (project init only)
+
+If location = **Project**, scan `$HOME/.claude/refactoring-guru/references/` and record, for each `(tree, category)` pair, what is already present at the user layer:
+
+- **customize** — directory exists and contains real files (not just `.gitkeep`).
+- **disable** — directory exists and contains only `.gitkeep`.
+- **absent** — directory does not exist (plugin defaults still apply at the user layer).
+
+Print a short summary of what user-layer overrides exist before asking further questions, so the user understands what the project layer will be layered on top of. This summary drives the per-category defaults in step 4.
+
+If location = **User**, skip this step — there is no lower override layer to inherit from.
+
 ### 2. Languages to override
 
 List the languages present in the plugin defaults at `${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references/` (currently `java`, `python`) plus an explicit "Add a new language" option. Allow multi-select.
 
-For each chosen existing language, proceed to step 4 (per-category mode). For a new language (e.g. `swift`, `typescript`), ask for the language name and create an empty tree:
+For each chosen existing language, proceed to step 4 (per-category mode). For a new language (e.g. `swift`, `typescript`), ask for the language name and then proceed to step 4 as well — do **not** create an empty tree blindly.
 
-```
-<lang>/principles.md          # empty placeholder
-<lang>/elements/.gitkeep
-<lang>/architecture/.gitkeep
-```
+Rationale: at the project layer, the user-layer may already define `swift/` (this is exactly the scenario the user-layer scan in step 1a surfaces). Creating `swift/elements/.gitkeep` and `swift/architecture/.gitkeep` at the project layer would shadow those user-layer overrides via directory-replace. Instead, route through the per-category question so each category can be inherited, customized, or disabled explicitly.
 
-A new language has no plugin defaults to seed from, so the per-category question does not apply — the user will write rules from scratch by editing the placeholders.
+For a new language at the **user** layer (no lower layer to inherit from), the per-category options collapse to Customize (start from plugin defaults if any, otherwise an empty placeholder the user will write from scratch) or Disable.
 
 ### 3. Common (cross-language) tree
 
@@ -52,30 +61,39 @@ Ask whether to handle the `common/` tree, then proceed to step 4 with `common` a
 
 ### 4. Per-category mode (for each tree × category)
 
-For each `(tree, category)` pair where `tree ∈ { selected existing languages, common }` and `category ∈ { principles, elements, architecture }`, ask **one question with three options**:
+For each `(tree, category)` pair where `tree ∈ { selected existing or new languages, common }` and `category ∈ { principles, elements, architecture }`, ask **one question with up to four options**. Which options are offered, and which is the default, depends on what was found in step 1a:
 
-- **Keep** — do nothing. Plugin defaults continue to resolve for this category. This is the default.
-- **Customize** — copy the plugin defaults for this category into the override layer. The user edits a working copy.
-- **Disable** — create the category directory at the override layer with only `.gitkeep` inside. Directory-replace makes the category resolve to zero rules, opting out of this category for every review.
+- **Inherit** — do nothing at this layer. Resolution falls through to the user layer (or plugin defaults if the user layer is also absent for this category). Offered **only** when initializing at the project layer **and** the user layer has a non-absent state for this `(tree, category)`. When offered, it is the default.
+- **Keep** — do nothing. Plugin defaults continue to resolve for this category. Always offered. Default when Inherit is not applicable.
+- **Customize** — copy a baseline for this category into the override layer. The user edits a working copy. Baseline source:
+  - At the **project** layer, if user-layer overrides exist for this `(tree, category)` and are non-empty, ask whether to seed from the user-layer copy or from the plugin defaults. Prefer user-layer when the user wants to extend their existing rules; prefer plugin defaults when the user wants a fresh start.
+  - Otherwise, copy from the plugin defaults.
+  - For a new language with no plugin defaults, create an empty placeholder the user will write from scratch.
+- **Disable** — create the category directory at this layer with only `.gitkeep` inside. Directory-replace makes the category resolve to zero rules at this layer and below, opting out of this category for every review.
 
 Group the questions by tree to keep the flow tidy: ask all three categories for `python`, then all three for `common`, etc. Skip categories the user already declined to override at the tree level.
 
-**Default for all categories: Keep.** The skill should not push users toward customizing or disabling unless they explicitly choose so.
+**Default selection rules:**
+- If Inherit is offered → Inherit is the default. Project init should not silently shadow the user layer; the user must explicitly choose to override.
+- Otherwise → Keep is the default. The skill should not push users toward customizing or disabling unless they explicitly choose so.
 
 ## Execution
 
 1. Resolve target root (project or user).
 2. Locate plugin defaults at `${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references/`. If `CLAUDE_PLUGIN_ROOT` is not set, fall back to scanning known plugin install locations and abort with a clear message if defaults are not found.
-3. For each `(tree, category)` × chosen mode:
+3. If target is project, scan `$HOME/.claude/refactoring-guru/references/` to determine the user-layer state per `(tree, category)` (see step 1a).
+4. For each `(tree, category)` × chosen mode:
+   - **Inherit** — do nothing. Do not create any directory at the override layer for this category. Verify the chosen target does not already contain anything for this `(tree, category)` from a previous run; if it does, warn the user — leftover files at this layer will continue to shadow the lower layer until removed.
    - **Keep** — do nothing. Do not create any directory at the override layer for this category.
-   - **Customize** — copy the plugin defaults for that category from source to target with `cp -R`. If the target already exists and is non-empty, ask before overwriting (skip / overwrite — prefer skip; do not "merge").
+   - **Customize** — copy the chosen baseline (user-layer overrides or plugin defaults, per step 4) for that category from source to target with `cp -R`. If the target already exists and is non-empty, ask before overwriting (skip / overwrite — prefer skip; do not "merge").
    - **Disable** — `mkdir -p <target>/<tree>/<category>` and `touch <target>/<tree>/<category>/.gitkeep`. Do **not** copy any files. If the target already exists and is non-empty, ask before clearing it (skip / clear-and-disable — prefer skip).
-4. For new languages, create the empty tree described in step 2.
-5. Print a per-category summary table:
+5. Print a per-category summary table that names the resolved layer for each category, e.g.:
+   - `swift/elements/         → inherited (resolves at user layer: <path>)`
+   - `swift/architecture/     → customized (copy at <path>, seeded from user layer)`
    - `python/elements/        → kept (plugin defaults apply)`
-   - `python/architecture/    → customized (copy at <path>)`
+   - `python/architecture/    → customized (copy at <path>, seeded from plugin defaults)`
    - `common/architecture/    → disabled (empty override at <path>)`
-   And a one-line reminder: *"To revert any decision later: delete the override directory to restore plugin defaults; replace its contents to switch between customize and disable."*
+   And a one-line reminder: *"To revert any decision later: delete the override directory at this layer to fall through to the next layer; replace its contents to switch between customize and disable."*
 
 ## Conventions
 
