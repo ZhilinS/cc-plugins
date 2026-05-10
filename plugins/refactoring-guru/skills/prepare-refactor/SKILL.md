@@ -93,6 +93,42 @@ references/
 
 **Resolution rule — directory-replace, per category.** For each logical path (`<tree>/principles.md`, `<tree>/elements/`, `<tree>/architecture/` where `<tree>` is the language name or `common`), walk the layers top-down. The first layer that contains the path owns it fully. If the path is a directory, ALL files inside belong to that layer — contents of the same directory in lower-priority layers are ignored. Resolution happens per category, so a project can override `python/elements/` without touching `python/architecture/` or `common/`.
 
+**An empty owning directory means the category is disabled.** If the winning layer's `<tree>/<category>/` directory exists but contains no `*.md` files (only `.gitkeep`, or nothing at all), the category resolves to **zero rules**. Do **not** fall through to lower layers in this case — the empty directory is the explicit signal that this category should contribute nothing. This is how the `init-overrides` skill's **Disable** mode works. A common failure mode is treating an empty owning directory as "no content found, try the next layer" — that is incorrect and silently re-enables rules the user explicitly opted out of.
+
+```dot
+digraph category_resolution {
+    rankdir=TB;
+    node [shape=box];
+
+    start [label="Resolve <tree>/<category>"];
+    proj [label="Project layer:\nis directory present?" shape=diamond];
+    proj_files [label="Has *.md files?" shape=diamond];
+    proj_owns_files [label="Project owns category\n→ include every *.md"];
+    proj_owns_empty [label="Project owns category\n→ ZERO rules (Disabled)"];
+
+    user [label="User layer:\nis directory present?" shape=diamond];
+    user_files [label="Has *.md files?" shape=diamond];
+    user_owns_files [label="User owns category\n→ include every *.md"];
+    user_owns_empty [label="User owns category\n→ ZERO rules (Disabled)"];
+
+    plugin [label="Plugin layer:\nis directory present?" shape=diamond];
+    plugin_files [label="Plugin owns category\n→ include every *.md"];
+    none [label="Category absent everywhere\n→ ZERO rules"];
+
+    start -> proj;
+    proj -> proj_files [label="yes"];
+    proj_files -> proj_owns_files [label="yes"];
+    proj_files -> proj_owns_empty [label="no — STOP, do NOT fall through"];
+    proj -> user [label="no"];
+    user -> user_files [label="yes"];
+    user_files -> user_owns_files [label="yes"];
+    user_files -> user_owns_empty [label="no — STOP, do NOT fall through"];
+    user -> plugin [label="no"];
+    plugin -> plugin_files [label="yes"];
+    plugin -> none [label="no"];
+}
+```
+
 **No pattern detection.** The exploration agent includes every file inside the winning layer's `elements/` and `architecture/` directories. If you want different rules for different architectures, create another language-like tree (e.g. `frontend/`, `mobile/`) or put pattern-specific rules in `common/`.
 
 **Adding rules** — drop files under `<layer>/<tree>/{principles.md, elements/*.md, architecture/*.md}` at the user or project layer. The exploration agent picks them up automatically; no plugin edits needed.
@@ -149,10 +185,12 @@ Your job:
 
    Resolution rule — directory-replace, per category: walk layers top-down; the first layer that contains the path owns it fully. If the path is a directory, ALL files inside come from that layer only (lower layers' contents at the same path are ignored). Resolution is per category — project can own `<lang>/elements/` without affecting `<lang>/architecture/` or anything in `common/`.
 
+   **CRITICAL — empty owning directory = Disabled (zero rules).** If the winning layer's category directory exists but contains zero `*.md` files (only `.gitkeep`, or completely empty), that category resolves to ZERO references. Do NOT fall through to lower layers. This is the explicit Disable mode from `init-overrides` — falling through to plugin defaults silently re-enables rules the user opted out of. Treat "directory exists" and "directory has *.md files" as separate checks; the first determines ownership, the second determines content.
+
    Procedure, run once for `<tree>=<language>` and once for `<tree>=common`:
-   a) `<tree>/principles.md` — first layer whose `<tree>/principles.md` exists wins; include that file.
-   b) `<tree>/elements/` — first layer whose `<tree>/elements/` directory exists wins; include every *.md inside it.
-   c) `<tree>/architecture/` — first layer whose `<tree>/architecture/` directory exists wins; include every *.md inside it.
+   a) `<tree>/principles.md` — first layer whose `<tree>/principles.md` file exists wins; include that file. (No empty-directory case — this is a single file path.)
+   b) `<tree>/elements/` — first layer whose `<tree>/elements/` directory exists wins. If the winning directory contains *.md files, include every one of them. If it is empty (or only `.gitkeep`), include zero files for this category and STOP — do not fall through to lower layers.
+   c) `<tree>/architecture/` — same rule as (b).
    d) If a category (or the whole tree) is not found in any layer, omit it. No placeholders.
 
    Output ABSOLUTE paths only.
@@ -181,10 +219,14 @@ Return an Exploration Report in this format:
 
 **Reference paths (common/architecture):**
 - /abs/path/to/common/architecture/<file>.md  [layer: ...]
+- (or, if the owning layer's directory is empty: write a single line `DISABLED at layer: <layer>` and include zero file paths)
 
 **Reference paths (common/elements):**
 - /abs/path/to/common/elements/<file>.md  [layer: ...]
+- (or `DISABLED at layer: <layer>` if the owning directory is empty)
 ```
+
+When a category is reported as DISABLED, downstream stages (1b, 1c, 4) MUST treat it as zero references and skip it entirely — do not load plugin defaults as a substitute.
 
 Receive the Exploration Report. Use it to configure the next sub-agents.
 
