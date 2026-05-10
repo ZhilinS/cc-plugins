@@ -93,6 +93,42 @@ references/
 
 **Resolution rule — directory-replace, per category.** For each logical path (`<tree>/principles.md`, `<tree>/elements/`, `<tree>/architecture/` where `<tree>` is the language name or `common`), walk the layers top-down. The first layer that contains the path owns it fully. If the path is a directory, ALL files inside belong to that layer — contents of the same directory in lower-priority layers are ignored. Resolution happens per category, so a project can override `python/elements/` without touching `python/architecture/` or `common/`.
 
+**An empty owning directory means the category is disabled.** If the winning layer's `<tree>/<category>/` directory exists but contains no `*.md` files (only `.gitkeep`, or nothing at all), the category resolves to **zero rules**. Do **not** fall through to lower layers in this case — the empty directory is the explicit signal that this category should contribute nothing. This is how the `init-overrides` skill's **Disable** mode works. A common failure mode is treating an empty owning directory as "no content found, try the next layer" — that is incorrect and silently re-enables rules the user explicitly opted out of.
+
+```dot
+digraph category_resolution {
+    rankdir=TB;
+    node [shape=box];
+
+    start [label="Resolve <tree>/<category>"];
+    proj [label="Project layer:\nis directory present?" shape=diamond];
+    proj_files [label="Has *.md files?" shape=diamond];
+    proj_owns_files [label="Project owns category\n→ include every *.md"];
+    proj_owns_empty [label="Project owns category\n→ ZERO rules (Disabled)"];
+
+    user [label="User layer:\nis directory present?" shape=diamond];
+    user_files [label="Has *.md files?" shape=diamond];
+    user_owns_files [label="User owns category\n→ include every *.md"];
+    user_owns_empty [label="User owns category\n→ ZERO rules (Disabled)"];
+
+    plugin [label="Plugin layer:\nis directory present?" shape=diamond];
+    plugin_files [label="Plugin owns category\n→ include every *.md"];
+    none [label="Category absent everywhere\n→ ZERO rules"];
+
+    start -> proj;
+    proj -> proj_files [label="yes"];
+    proj_files -> proj_owns_files [label="yes"];
+    proj_files -> proj_owns_empty [label="no — STOP, do NOT fall through"];
+    proj -> user [label="no"];
+    user -> user_files [label="yes"];
+    user_files -> user_owns_files [label="yes"];
+    user_files -> user_owns_empty [label="no — STOP, do NOT fall through"];
+    user -> plugin [label="no"];
+    plugin -> plugin_files [label="yes"];
+    plugin -> none [label="no"];
+}
+```
+
 **No pattern detection.** The exploration agent includes every file inside the winning layer's `elements/` and `architecture/` directories. If you want different rules for different architectures, create another language-like tree (e.g. `frontend/`, `mobile/`) or put pattern-specific rules in `common/`.
 
 **Adding rules** — drop files under `<layer>/<tree>/{principles.md, elements/*.md, architecture/*.md}` at the user or project layer. The exploration agent picks them up automatically; no plugin edits needed.
@@ -124,106 +160,15 @@ If tests need work, record this in the plan and address it before proceeding wit
 >
 > **Fallback:** If agent teams are not enabled, use `Task` tool subagents as described below.
 
-Spawn a sub-agent with this prompt:
+Read [prompts/exploration-agent.md](prompts/exploration-agent.md) for the full prompt template. Fill `[SCOPE AND STEERING FROM USER]` from the user's request, then spawn the sub-agent with that prompt.
 
-```
-You are a lightweight codebase explorer. Do NOT read any reference files. Do NOT check rules.
-
-User context:
-[SCOPE AND STEERING FROM USER — paste verbatim]
-
-Your job:
-
-1. Identify the programming language of the code being refactored (python, java, swift, or other name).
-2. List all files in scope (the files the user wants refactored).
-3. Resolve reference files from the layered reference stack.
-
-   Layer roots, priority high → low:
-   a) Project: "$(pwd)/.claude/refactoring-guru/references"
-   b) User:    "$HOME/.claude/refactoring-guru/references"
-   c) Plugin:  "${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references"
-      (if CLAUDE_PLUGIN_ROOT is empty, fall back to:
-       ls -d $HOME/.claude/plugins/cache/*/refactoring-guru/*/skills/prepare-refactor/references 2>/dev/null | sort -V | tail -1)
-
-   Resolve two trees, independently: the detected `<language>` tree and `common`. For each tree, resolve three categories: `principles.md`, `elements/`, `architecture/`.
-
-   Resolution rule — directory-replace, per category: walk layers top-down; the first layer that contains the path owns it fully. If the path is a directory, ALL files inside come from that layer only (lower layers' contents at the same path are ignored). Resolution is per category — project can own `<lang>/elements/` without affecting `<lang>/architecture/` or anything in `common/`.
-
-   Procedure, run once for `<tree>=<language>` and once for `<tree>=common`:
-   a) `<tree>/principles.md` — first layer whose `<tree>/principles.md` exists wins; include that file.
-   b) `<tree>/elements/` — first layer whose `<tree>/elements/` directory exists wins; include every *.md inside it.
-   c) `<tree>/architecture/` — first layer whose `<tree>/architecture/` directory exists wins; include every *.md inside it.
-   d) If a category (or the whole tree) is not found in any layer, omit it. No placeholders.
-
-   Output ABSOLUTE paths only.
-
-Return an Exploration Report in this format:
-
-## Exploration Report
-
-**Language:** [python | java | swift | other]
-**Files in scope:**
-- path/to/file1.py
-- path/to/file2.py
-
-**Reference paths (<language>/principles):**
-- /abs/path/to/<language>/principles.md  [layer: plugin|user|project]
-
-**Reference paths (<language>/architecture):**
-- /abs/path/to/<language>/architecture/<file>.md  [layer: ...]
-
-**Reference paths (<language>/elements):**
-- /abs/path/to/<language>/elements/<file>.md  [layer: ...]
-- ... (every file in the owning elements dir)
-
-**Reference paths (common/principles):**
-- /abs/path/to/common/principles.md  [layer: ...]        # omit section if none found
-
-**Reference paths (common/architecture):**
-- /abs/path/to/common/architecture/<file>.md  [layer: ...]
-
-**Reference paths (common/elements):**
-- /abs/path/to/common/elements/<file>.md  [layer: ...]
-```
+The prompt walks the layered reference stack (project → user → plugin) per category and produces an Exploration Report with absolute paths. Categories that resolve to an empty owning directory are reported as `DISABLED at layer: <layer>` — downstream stages MUST treat those as zero references and never substitute plugin defaults.
 
 Receive the Exploration Report. Use it to configure the next sub-agents.
 
 ### Stage 1b: Architecture Agent
 
-Spawn a sub-agent with this prompt (fill in values from the Exploration Report):
-
-```
-You are an architecture code reviewer.
-
-User context:
-[SCOPE AND STEERING FROM USER — paste verbatim]
-
-Files in scope:
-[LIST FILES FROM EXPLORATION REPORT]
-
-Reference files to check (read each one):
-[LIST THE <language>/architecture, <language>/principles, common/architecture, AND common/principles PATHS FROM THE EXPLORATION REPORT]
-
-For EACH reference file:
-1. Read the file.
-2. Extract every ## heading — each heading is a separate rule.
-3. For each rule: check ALL files in scope against that rule.
-4. Record violations: which file, which lines, what is wrong.
-5. If a file follows the rule, skip it — only report violations.
-
-Do NOT fix anything. Read-only review only.
-
-Return an Architecture Violation Report in this format:
-
-## Architecture Violation Report
-
-### [Rule Name — exact ## heading from reference]
-**Reference:** /abs/path/to/<language>/architecture/<file>.md
-**Files:** path/to/file.py:10-30
-**Violation:** [What is wrong]
-
-(Repeat for each violation. If no violations found, write: "No architecture violations found.")
-```
+Read [prompts/architecture-agent.md](prompts/architecture-agent.md) for the full prompt template. Fill placeholders with values from the Exploration Report (files in scope; the `<language>/architecture`, `<language>/principles`, `common/architecture`, and `common/principles` paths) and the user's original request, then spawn the sub-agent.
 
 **After receiving the report:**
 - If violations found → see "Architecture Violations" below
@@ -245,40 +190,7 @@ If the Architecture Agent reports violations:
 
 Spawn sub-agents **in parallel** using the Task tool. Each covers a subset of element references from BOTH `<language>/elements/` and `common/elements/` (if present). Decide the number of agents and how to batch references based on how many reference files the Exploration Report returned. Aim to balance work evenly across agents.
 
-**Per-agent prompt template** (fill in values from the Exploration Report):
-
-```
-You are a code elements reviewer.
-
-User context:
-[SCOPE AND STEERING FROM USER — paste verbatim]
-
-Files in scope:
-[LIST FILES FROM EXPLORATION REPORT]
-
-Reference files to check (read each one):
-[LIST THIS AGENT'S REFERENCE FILE PATHS]
-
-For EACH reference file:
-1. Read the file.
-2. Extract every ## heading — each heading is a separate rule.
-3. For each rule: check ALL files in scope against that rule.
-4. Record violations: which file, which lines, what is wrong.
-5. If a file follows the rule, skip it — only report violations.
-
-Do NOT fix anything. Read-only review only.
-
-Return a Violation Report in this format:
-
-## Violation Report: [Agent N]
-
-### [Rule Name — exact ## heading from reference]
-**Reference:** /abs/path/to/<language>/elements/<file>.md
-**Files:** path/to/file.py:10-30
-**Violation:** [What is wrong]
-
-(Repeat for each violation. If no violations found for a rule, skip it.)
-```
+Read [prompts/elements-agent.md](prompts/elements-agent.md) for the per-agent prompt template. For each spawned agent, fill placeholders with the files in scope and that agent's assigned subset of reference paths, then send.
 
 Wait for all agents to complete, then collect all violation reports.
 
