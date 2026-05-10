@@ -61,27 +61,38 @@ Ask whether to handle the `common/` tree, then proceed to step 4 with `common` a
 
 ### 4. Per-category mode (for each tree × category)
 
-For each `(tree, category)` pair where `tree ∈ { selected existing or new languages, common }` and `category ∈ { principles, elements, architecture }`, ask **one question with up to four options**. Which options are offered, and which is the default, depends on what was found in step 1a:
+**Only ask when there is a conflict to resolve.** A category needs the question if and only if some lower layer has actual content that the new override would shadow — i.e. user-layer (when initializing at project) or plugin defaults are non-empty for this `(tree, category)`. If no lower layer has content for this category (e.g. new language `swift`, user-layer empty, no plugin defaults for swift), the per-category question is **skipped** — the category trivially resolves to nothing already, so there is nothing to override. Step 4a below covers the "I want to write rules from scratch anyway" case for those skipped categories.
+
+For each remaining `(tree, category)` pair where `tree ∈ { selected existing or new languages, common }` and `category ∈ { principles, elements, architecture }`, ask **one question with up to four options**. The question header must state the current effective resolution so the user understands what they are about to override:
+
+> `swift/architecture/` currently resolves at: **user layer** (`~/.claude/refactoring-guru/references/swift/architecture/` — 4 files). What do you want at the project layer?
+
+> `python/elements/` currently resolves at: **plugin defaults** (`${CLAUDE_PLUGIN_ROOT}/.../python/elements/` — 6 files). What do you want at the user layer?
+
+The four options:
 
 - **Inherit** — do nothing at this layer. Resolution falls through to the user layer (or plugin defaults if the user layer is also absent for this category). Offered **only** when initializing at the project layer **and** the user layer has a non-absent state for this `(tree, category)`. When offered, it is the default.
-- **Keep** — do nothing. Plugin defaults continue to resolve for this category. Always offered. Default when Inherit is not applicable.
+- **Keep** — do nothing. Plugin defaults continue to resolve for this category. Always offered when plugin defaults exist for this `(tree, category)`. Default when Inherit is not applicable.
 - **Customize** — copy a baseline for this category into the override layer. The user edits a working copy. Baseline source:
   - At the **project** layer, if user-layer overrides exist for this `(tree, category)` and are non-empty, ask whether to seed from the user-layer copy or from the plugin defaults. Prefer user-layer when the user wants to extend their existing rules; prefer plugin defaults when the user wants a fresh start.
   - Otherwise, copy from the plugin defaults.
-  - For a new language with no plugin defaults, create an empty placeholder the user will write from scratch.
 - **Disable** — create the category directory at this layer with only `.gitkeep` inside. Directory-replace makes the category resolve to zero rules at this layer and below, opting out of this category for every review.
 
-Group the questions by tree to keep the flow tidy: ask all three categories for `python`, then all three for `common`, etc. Skip categories the user already declined to override at the tree level.
+Group the questions by tree to keep the flow tidy: ask all conflicting categories for `python`, then all conflicting categories for `common`, etc. Skip categories the user already declined to override at the tree level.
 
 **Default selection rules:**
 - If Inherit is offered → Inherit is the default. Project init should not silently shadow the user layer; the user must explicitly choose to override.
 - Otherwise → Keep is the default. The skill should not push users toward customizing or disabling unless they explicitly choose so.
 
+### 4a. Optional fresh-start placeholders
+
+For categories that step 4 skipped because no lower layer had content (typically: a brand-new language with no user-layer setup), offer **one** consolidated yes/no question per tree: "No lower layer has content for `swift/principles`, `swift/elements`, `swift/architecture`. Create empty placeholders here so you can write rules from scratch?" If yes, create `principles.md` (empty) and `elements/.gitkeep`, `architecture/.gitkeep`. If no, create nothing — the user can come back to this skill later. Do **not** ask Inherit/Keep/Customize/Disable for these categories; there is no conflict to resolve.
+
 ## Execution
 
 1. Resolve target root (project or user).
 2. Locate plugin defaults at `${CLAUDE_PLUGIN_ROOT}/skills/prepare-refactor/references/`. If `CLAUDE_PLUGIN_ROOT` is not set, fall back to scanning known plugin install locations and abort with a clear message if defaults are not found.
-3. If target is project, scan `$HOME/.claude/refactoring-guru/references/` to determine the user-layer state per `(tree, category)` (see step 1a).
+3. If target is project, scan `$HOME/.claude/refactoring-guru/references/` to determine the user-layer state per `(tree, category)` (see step 1a). Determine, per `(tree, category)`, whether any lower layer has content — this drives which questions are asked in step 4 vs. handled by step 4a.
 4. For each `(tree, category)` × chosen mode:
    - **Inherit** — do nothing. Do not create any directory at the override layer for this category. Verify the chosen target does not already contain anything for this `(tree, category)` from a previous run; if it does, warn the user — leftover files at this layer will continue to shadow the lower layer until removed.
    - **Keep** — do nothing. Do not create any directory at the override layer for this category.
