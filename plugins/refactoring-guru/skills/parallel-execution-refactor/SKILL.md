@@ -77,9 +77,18 @@ Invoke `refactoring-guru:prepare-refactor` Stage 1a (Exploration) first. The exp
 
 If you already have an Exploration Report from an earlier stage of the same session, reuse it instead of re-running exploration.
 
+## Sub-agent model: use Sonnet
+
+All sub-agents spawned by this skill (review and fix) MUST run on Sonnet, not Opus. The task is bounded: rules come from reference files, violations are listed explicitly, and the work is mechanical pattern-matching and edits. Sonnet handles this well at a fraction of the cost.
+
+- `Task` tool: pass `model: "sonnet"` in every sub-agent invocation.
+- Agent teams (`TeamCreate`): set the team's model to `sonnet` when creating it.
+
+The orchestrator (this conversation) stays on whatever model the user picked — only the dispatched workers switch to Sonnet.
+
 ## Stage 1: Review (parallel, read-only)
 
-Spawn one **read-only** sub-agent per reference file. Each agent checks its rules against all code files in scope and produces a violation report.
+Spawn one **read-only** sub-agent per reference file (on Sonnet — see above). Each agent checks its rules against all code files in scope and produces a violation report.
 
 **All review agents run in parallel.** They only read code — no conflicts possible.
 
@@ -119,7 +128,7 @@ Do NOT parallelize architecture fixes. Do NOT start Elements fixes until Archite
 
 ### Elements and Polish fixes: PARALLEL by file batch
 
-Once architecture is stable, Elements and Polish fixes can run in parallel with one constraint:
+Once architecture is stable, Elements and Polish fixes can run in parallel (on Sonnet — see "Sub-agent model" above) with one constraint:
 
 **No two agents touch the same file.**
 
