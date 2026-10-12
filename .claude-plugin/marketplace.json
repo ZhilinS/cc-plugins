@@ -20,6 +20,12 @@
       "description": "Write a perfect code using provided code rules and samples",
       "source": "./plugins/refactoring-guru",
       "category": "development"
+    },
+    {
+      "name": "agterm-visuals",
+      "description": "Diagrams and interactive walkthroughs as HTML pages in agterm's right split pane",
+      "source": "./plugins/agterm-visuals",
+      "category": "productivity"
     }
   ]
 }

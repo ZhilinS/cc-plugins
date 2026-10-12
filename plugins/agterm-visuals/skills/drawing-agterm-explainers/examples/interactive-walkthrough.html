@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>delegate-to-pi: симулятор</title>
+<style>
+  body { margin: 0; background: var(--agterm-background, Canvas); color: var(--agterm-foreground, CanvasText);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    --fg: var(--agterm-foreground, CanvasText); --bg: var(--agterm-background, Canvas);
+    --opus: var(--agterm-color-4, #3b6fd8); --haiku: var(--agterm-color-5, #b04fc0);
+    --pi: var(--agterm-color-6, #1b9aa8); --human: var(--agterm-color-3, #c99a1c);
+    --hook: var(--agterm-color-2, #3a9a4a); --no: var(--agterm-color-1, #d04040);
+    --dim: color-mix(in srgb, var(--fg) 55%, transparent);
+    --card: color-mix(in srgb, var(--fg) 6%, transparent);
+    --line: color-mix(in srgb, var(--fg) 40%, transparent);
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 18px 16px 52vh; }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sub { color: var(--dim); margin: 0 0 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--dim); }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 3px;
+    margin-right: 5px; background: var(--c); }
+  h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+    text-align: center; margin: 30px 0 12px; }
+  .top { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+
+  .flow { display: flex; flex-direction: column; align-items: center; }
+  .row { display: flex; align-items: center; justify-content: center; gap: 0; width: 100%; flex-wrap: wrap; }
+  .arr { position: relative; width: 2px; height: 26px; margin: 2px 0 8px;
+    background: repeating-linear-gradient(to bottom, var(--line) 0 6px, transparent 6px 11px); background-size: 2px 11px; }
+  .arr::after { content: ""; position: absolute; left: -5px; bottom: -8px; border: 6px solid transparent;
+    border-top: 8px solid var(--line); border-bottom: 0; }
+  .arr.hot { --line: var(--fg); animation: down .8s linear infinite; }
+  .harr { position: relative; width: 34px; height: 2px; margin: 0 10px 0 6px;
+    background: repeating-linear-gradient(to right, var(--line) 0 6px, transparent 6px 11px); background-size: 11px 2px; }
+  .harr::after { content: ""; position: absolute; right: -8px; top: -5px; border: 6px solid transparent;
+    border-left: 8px solid var(--line); border-right: 0; }
+  .harr.hot { --line: var(--fg); animation: right .8s linear infinite; }
+  @keyframes down { to { background-position: 0 11px; } }
+  @keyframes right { to { background-position: 11px 0; } }
+  @media (prefers-reduced-motion: reduce) { .arr.hot, .harr.hot { animation: none; } }
+
+  .node { position: relative; isolation: isolate; text-align: center; max-width: 300px; min-width: 150px;
+    opacity: .45; transition: opacity .2s, transform .2s; }
+  .node.seen { opacity: .8; }
+  .node.on { opacity: 1; transform: scale(1.03); }
+  .side .node { max-width: 200px; min-width: 120px; }
+  .who { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c); }
+  .t { font-weight: 600; }
+  .pill { border: 2px solid var(--c); border-radius: 999px; padding: 9px 20px; }
+  .box { border: 2px solid var(--c); border-radius: 6px; padding: 9px 16px; }
+  .data, .dec { padding: 11px 30px; }
+  .data::before, .data::after, .dec::before, .dec::after { content: ""; position: absolute; inset: 0; z-index: -1; }
+  .data::before { background: var(--c); clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%); }
+  .data::after { inset: 2px 3px; background: var(--bg); clip-path: polygon(7% 0, 100% 0, 93% 100%, 0 100%); }
+  .dec { padding: 24px 50px; }
+  .dec::before { background: var(--c); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .dec::after { inset: 3px 5px; background: var(--bg); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  .node.on.box, .node.on.pill { box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 25%, transparent); }
+  .node.on.dec::before, .node.on.data::before { filter: drop-shadow(0 0 6px var(--c)); }
+  .cnt { display: block; font-size: 11px; color: var(--dim); }
+
+  .btns { display: none; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 2px 0 10px; }
+  .btns.on { display: flex; }
+  button { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 999px; padding: 5px 13px;
+    border: 1.5px solid var(--b, var(--line)); color: var(--b, var(--fg)); background: color-mix(in srgb, var(--b, var(--fg)) 10%, transparent); }
+  button:hover { background: color-mix(in srgb, var(--b, var(--fg)) 22%, transparent); }
+  button.ghost { font-weight: 500; --b: var(--dim); }
+  .yes { --b: var(--hook); } .no { --b: var(--no); } .go { --b: var(--opus); }
+
+  /* message panel */
+  .panel { position: fixed; left: 0; right: 0; bottom: 0; max-height: 48vh; overflow: auto; z-index: 10;
+    background: linear-gradient(var(--bg), var(--bg)), Canvas; border-top: 2px solid var(--pc, var(--line));
+    box-shadow: 0 -8px 24px color-mix(in srgb, #000 25%, transparent); }
+  .pin { max-width: 760px; margin: 0 auto; padding: 10px 16px 16px; }
+  .route { font-size: 11.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--pc); }
+  .ptitle { font-weight: 600; font-size: 15px; margin: 2px 0 6px; }
+  pre { margin: 0 0 8px; padding: 10px 12px; border-radius: 8px; background: var(--card); overflow-x: auto;
+    font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; }
+  pre .k { color: var(--opus); font-weight: 700; }
+  pre .c { color: var(--dim); }
+  pre .k[data-k] { cursor: help; border-bottom: 1px dotted var(--opus); }
+  pre .k[data-k]:hover { background: color-mix(in srgb, var(--opus) 18%, transparent); }
+  .pop { position: fixed; z-index: 20; max-width: 340px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+    background: linear-gradient(color-mix(in srgb, var(--opus) 14%, var(--bg)), color-mix(in srgb, var(--opus) 14%, var(--bg))), Canvas;
+    border: 1.5px solid var(--opus); box-shadow: 0 8px 24px color-mix(in srgb, #000 35%, transparent); display: none; }
+  .pop.on { display: block; }
+  .pop b { display: block; font-family: ui-monospace, Menlo, monospace; color: var(--opus); margin-bottom: 3px; }
+  pre .add { color: var(--hook); } pre .del { color: var(--no); text-decoration: line-through; }
+  pre .cmd { color: var(--pi); }
+  .notes { margin: 0; padding-left: 18px; font-size: 13px; }
+  .notes li { margin: 2px 0; }
+  code { font: 12px ui-monospace, Menlo, monospace; background: color-mix(in srgb, var(--fg) 10%, transparent); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>delegate-to-pi: пройди цикл сам</h1>
+  <p class="sub">Жми кнопки на ромбах. Внизу показано сообщение, которое уходит на этом шаге.</p>
+  <div class="legend">
+    <span style="--c: var(--opus)">Opus</span><span style="--c: var(--haiku)">pi-runner (Haiku)</span>
+    <span style="--c: var(--pi)">pi</span><span style="--c: var(--hook)">хуки</span><span style="--c: var(--human)">ты</span>
+  </div>
+  <div class="top"><button class="ghost" onclick="go('start')">↺ Сначала</button><button class="ghost" onclick="go('end')">⏭ К обучению</button></div>
+
+  <h2>1 · Работа</h2>
+  <div class="flow">
+    <div class="node pill" id="n-start" style="--c: var(--opus)"><span class="who">ты → Opus</span><span class="t">Задача</span></div>
+    <div class="btns" id="b-start"><button class="go" onclick="go('check')">Дальше ↓</button></div>
+    <div class="arr" id="a-start"></div>
+
+    <div class="row">
+      <div class="node dec" id="n-check" style="--c: var(--opus)"><span class="t">Пакет короче самой работы?</span></div>
+      <div class="harr" id="a-self"></div>
+      <div class="side"><div class="node box" id="n-self" style="--c: var(--opus)"><span class="who">Opus</span><span class="t">Делает сам</span></div></div>
+    </div>
+    <div class="btns" id="b-check"><button class="yes" onclick="go('packet')">Да → делегировать</button><button class="no" onclick="go('self')">Нет → сам</button></div>
+    <div class="btns" id="b-self"><button class="ghost" onclick="go('start')">↺ Другая задача</button></div>
+    <div class="arr" id="a-check"></div>
+
+    <div class="node data" id="n-packet" style="--c: var(--opus)"><span class="who">Opus → pi-runner</span><span class="t">Пакет задачи</span></div>
+    <div class="btns" id="b-packet"><button class="go" onclick="go('rules')">Отправить ↓</button></div>
+    <div class="arr" id="a-packet"></div>
+
+    <div class="node box" id="n-rules" style="--c: var(--haiku)"><span class="who">pi-runner</span><span class="t">Читает rules.md</span></div>
+    <div class="btns" id="b-rules"><button class="go" onclick="go('call')">Первый вызов pi ↓</button></div>
+    <div class="arr" id="a-rules"></div>
+
+    <div class="node dec" id="n-call" style="--c: var(--pi)"><span class="who">pi-runner → pi</span><span class="t">DONE WHEN выполнен?</span><span class="cnt" id="cnt"></span></div>
+    <div class="btns" id="b-call"><button class="yes" onclick="ok()">Да ✓</button><button class="no" onclick="fail()">Нет ✗</button><button class="ghost" onclick="exhaust()">⏭ исчерпать бюджет</button></div>
+    <div class="arr" id="a-call"></div>
+
+    <div class="row">
+      <div class="node dec" id="n-status" style="--c: var(--haiku)"><span class="who">pi-runner → Opus</span><span class="t">STATUS?</span></div>
+      <div class="harr" id="a-replan"></div>
+      <div class="side"><div class="node box" id="n-replan" style="--c: var(--opus)"><span class="who">Opus</span><span class="t">Перепланирует</span></div></div>
+    </div>
+    <div class="btns" id="b-status"></div>
+    <div class="btns" id="b-replan"><button class="go" onclick="replan()">↩ Новый пакет</button></div>
+    <div class="arr" id="a-status"></div>
+
+    <div class="node data" id="n-verify" style="--c: var(--pi)"><span class="who">Opus → другой pi-runner</span><span class="t">Verify-пакет</span></div>
+    <div class="btns" id="b-verify"><button class="go" onclick="go('vres')">Запустить ↓</button></div>
+    <div class="arr" id="a-verify"></div>
+
+    <div class="row">
+      <div class="node dec" id="n-vres" style="--c: var(--pi)"><span class="who">verify → Opus</span><span class="t">Результат?</span></div>
+      <div class="harr" id="a-fix"></div>
+      <div class="side"><div class="node box" id="n-fix" style="--c: var(--opus)"><span class="who">Opus</span><span class="t">Новый code-пакет</span></div></div>
+    </div>
+    <div class="btns" id="b-vres"><button class="yes" onclick="go('accepted')">VERIFIED</button><button class="no" onclick="go('fix')">FAILED</button><button class="ghost" onclick="go('manual')">MANUAL</button></div>
+    <div class="btns" id="b-fix"><button class="go" onclick="fixLoop()">↩ Отправить фикс</button></div>
+    <div class="btns" id="b-manual"><button class="go" onclick="go('accepted')">Ты проверил руками ✓</button></div>
+    <div class="arr" id="a-vres"></div>
+
+    <div class="node pill" id="n-accepted" style="--c: var(--hook)"><span class="t">Принято</span></div>
+    <div class="btns" id="b-accepted"><button class="go" onclick="go('end')">Закончить сессию ↓</button></div>
+  </div>
+
+  <h2>2 · Обучение</h2>
+  <div class="flow">
+    <div class="node pill" id="n-end" style="--c: var(--hook)"><span class="who">хук SessionEnd</span><span class="t">Сессия закончилась</span></div>
+    <div class="btns" id="b-end"><button class="go" onclick="go('hadrunner')">Дальше ↓</button></div>
+    <div class="arr" id="a-end"></div>
+
+    <div class="row">
+      <div class="node dec" id="n-hadrunner" style="--c: var(--hook)"><span class="t">Был pi-runner?</span></div>
+      <div class="harr" id="a-nothing"></div>
+      <div class="side"><div class="node pill" id="n-nothing" style="--c: var(--hook)"><span class="t">Ничего не уходит</span></div></div>
+    </div>
+    <div class="btns" id="b-hadrunner"><button class="yes" onclick="go('compact')">Да</button><button class="no" onclick="go('nothing')">Нет</button></div>
+    <div class="btns" id="b-nothing"><button class="ghost" onclick="go('start')">↺ Сначала</button></div>
+    <div class="arr" id="a-hadrunner"></div>
+
+    <div class="node box" id="n-compact" style="--c: var(--hook)"><span class="who">reflect.sh</span><span class="t">Сжать транскрипт + lock</span></div>
+    <div class="btns" id="b-compact"><button class="go" onclick="go('reflect')">Отдать pi ↓</button></div>
+    <div class="arr" id="a-compact"></div>
+
+    <div class="node box" id="n-reflect" style="--c: var(--pi)"><span class="who">reflect.sh → claude -p · Opus</span><span class="t">Свести уроки в правила</span></div>
+    <div class="btns" id="b-reflect"><button class="go" onclick="go('pending')">Ответ Opus ↓</button></div>
+    <div class="arr" id="a-reflect"></div>
+
+    <div class="node data" id="n-pending" style="--c: var(--opus)"><span class="t">rules.pending.md + dropped</span></div>
+    <div class="btns" id="b-pending"><button class="go" onclick="go('surface')">Новая сессия ↓</button></div>
+    <div class="arr" id="a-pending"></div>
+
+    <div class="node pill" id="n-surface" style="--c: var(--hook)"><span class="who">хук SessionStart → Opus</span><span class="t">surface.sh</span></div>
+    <div class="btns" id="b-surface"><button class="go" onclick="go('approve')">Показать diff ↓</button></div>
+    <div class="arr" id="a-surface"></div>
+
+    <div class="row">
+      <div class="node dec" id="n-approve" style="--c: var(--human)"><span class="who">ты</span><span class="t">Одобряешь?</span></div>
+      <div class="harr" id="a-reject"></div>
+      <div class="side"><div class="node box" id="n-reject" style="--c: var(--human)"><span class="t">pending удалён</span></div></div>
+    </div>
+    <div class="btns" id="b-approve"><button class="yes" onclick="go('applied')">Да</button><button class="no" onclick="go('reject')">Нет</button></div>
+    <div class="btns" id="b-reject"><button class="ghost" onclick="go('start')">↺ Сначала</button></div>
+    <div class="arr" id="a-approve"></div>
+
+    <div class="node pill" id="n-applied" style="--c: var(--haiku)"><span class="t">rules.md обновлён</span></div>
+    <div class="btns" id="b-applied"><button class="go" onclick="go('start')">↺ Следующая задача прочитает их</button></div>
+  </div>
+</div>
+
+<div class="pop" id="pop"></div>
+<div class="panel" id="panel"><div class="pin">
+  <div class="route" id="p-route"></div>
+  <div class="ptitle" id="p-title"></div>
+  <pre id="p-code"></pre>
+  <div class="hintk" id="p-hint" style="font-size:11.5px;color:var(--dim);margin:-4px 0 6px">Нажми на подчёркнутый ключ: покажется, что он значит.</div>
+  <ul class="notes" id="p-notes"></ul>
+</div></div>
+
+<script>
+const WD = '/Users/you/workspace/robot-marketplace';
+let s = { item: 1, calls: 0, total: 0, model: 'deepseek-v4.1-flash', fellBack: false, blocked: false, ver: 1, fix: false, log: [] };
+let seen = new Set();
+const order = ['start','check','self','packet','rules','call','status','replan','verify','vres','fix','manual','accepted',
+  'end','hadrunner','nothing','compact','reflect','pending','surface','approve','reject','applied'];
+const arrowsTo = { check:'a-start', self:'a-self', packet:'a-check', rules:'a-packet', call:'a-rules', status:'a-call',
+  replan:'a-replan', verify:'a-status', vres:'a-verify', fix:'a-fix', accepted:'a-vres', hadrunner:'a-end',
+  nothing:'a-nothing', compact:'a-hadrunner', reflect:'a-compact', pending:'a-reflect', surface:'a-pending',
+  approve:'a-surface', reject:'a-reject', applied:'a-approve' };
+
+function items() {
+  if (s.fix) return [
+    ['Сортировка групп по category.position, не по id', 'tests/test_catalog.py::test_group_order проходит']];
+  if (s.ver === 2) return [
+    ['Найти, по какому полю тест ожидает порядок групп', 'в отчёте строка tests/test_catalog.py:NN с полем'],
+    ['Группировка в catalog_view() по category_id в этом порядке', 'tests/test_catalog.py::test_grouping проходит'],
+    ['Скрыть пустые категории в catalog.html', 'grep "if group.items" templates/catalog.html находит строку']];
+  return [
+    ['Группировка в catalog_view() по category_id', 'tests/test_catalog.py::test_grouping проходит'],
+    ['Скрыть пустые категории в catalog.html', 'grep "if group.items" templates/catalog.html находит строку']];
+}
+
+function packetText() {
+  const its = items();
+  return [
+    'TYPE: code' + (s.ver === 2 && !s.fix ? '            # v2 после BLOCKED' : ''),
+    'GOAL: ' + (s.fix ? 'Группы в каталоге идут в порядке category.position.' : 'Товары в каталоге сгруппированы по категориям, пустые категории скрыты.'),
+    'WORKDIR: ' + WD,
+    'BUDGET: 8',
+    'CHECKLIST:',
+    ...its.flatMap((it, i) => [`  ${i + 1}. ${it[0]}`, `     DONE WHEN: ${it[1]}`]),
+    'CONSTRAINTS: ветка fix/catalog-grouping, коммит без push; не трогать migrations/'
+  ].join('\n');
+}
+
+const P = {
+  start: () => ({ c: 'opus', route: 'ты → Opus', title: 'Задача приходит в главную сессию',
+    code: 'В каталоге товары перестали группироваться по категориям,\nи вылезли пустые категории. Почини.',
+    notes: ['Opus планирует: читает ровно столько, сколько нужно для плана, и решает, кто будет исполнять.'] }),
+  check: () => ({ c: 'opus', route: 'Opus думает', title: 'Пакет короче самой работы?',
+    code: 'Пакет:  ~10 строк (что, где, как проверить)\nРабота: найти catalog_view, понять модель, править,\n        гонять pytest, чинить, снова гонять…',
+    notes: ['<b>Да</b>: описать дешевле, чем сделать, поэтому исполнение уходит в pi на подписку Go.',
+      '<b>Нет</b>, когда пакет вышел бы не короче правки. Например, текст уже согласован в чате и его надо просто вставить.'] }),
+  self: () => ({ c: 'opus', route: 'Opus', title: 'Opus делает сам',
+    code: 'Edit README.md: заменить абзац «Install» на согласованный текст.',
+    notes: ['Ещё сюда относится чистое суждение: архитектурное решение, финальное ревью, ответ на BLOCKED.'] }),
+  packet: () => ({ c: 'opus', route: 'Opus → pi-runner · Agent(subagent_type: "delegate-to-pi:pi-runner", prompt: …)', title: 'Это prompt сабагента целиком',
+    code: packetText(),
+    notes: ['Пунктов до ~7. Всё, что Opus уже знает (пути, текст ошибки), кладётся сюда: сабагент стартует с нуля.',
+      'В чат печатается строка: <code>pi-runner → code on deepseek-v4.1-flash</code>.'] }),
+  rules: () => ({ c: 'haiku', route: 'pi-runner читает файл', title: '~/.claude/delegate-to-pi/lessons/rules.md',
+    code: '- Set PI_RW=write on every pi call or pi starts read-only.\n- Run every pi call with alarm + empty stdin or pi waits on stdin forever.\n- State the reply language in the prompt — pi sometimes replies in Chinese.\n- Never trust DONE — grep every named route/command yourself.\n<span class="c">… до 40 строк</span>',
+    notes: ['Правила относящиеся к pi (форма промпта, таймауты) раннер переносит в каждый промпт для pi.'] }),
+  call: () => {
+    const it = items()[s.item - 1];
+    const done = s.log.length ? s.log.map(l => '  ' + l).join('\n') : '  (пока пусто)';
+    const prev = s.calls > 0 ? `\nPREVIOUS ATTEMPT: pytest упал — AssertionError: groups order [3, 1, 2] != [1, 2, 3]` : '';
+    return { c: 'pi', route: `pi-runner → pi · пункт ${s.item}/${items().length} · вызов ${s.calls + 1}/8 · ${s.model}`, title: 'Bash-команда раннера и промпт для pi',
+      code: `<span class="cmd">$ PI_RW=write perl -e 'alarm 600; exec @ARGV' \\\n    pi -p --provider opencode-go --model ${s.model} --no-session "$PROMPT" &lt;/dev/null</span>\n\n` +
+        `<span class="c"># $PROMPT:</span>\nGOAL: ${packetText().split('\n')[1].slice(6)}\nWORKDIR: ${WD}\nSTEP ${s.item}: ${it[0]}\nDONE WHEN: ${it[1]}\nDONE SO FAR:\n${done}${prev}\n` +
+        `NEXT: сделай шаг, запусти проверку из DONE WHEN.\nREPLY: по-русски; в конце блок DONE — что изменено + вывод проверки.`,
+      notes: ['pi ничего не помнит между вызовами. Память — это раннер: он передаёт «DONE SO FAR» в каждый промпт.',
+        'Ответу pi раннер не верит, а сам проверяет DONE WHEN: запускает тест или grep.',
+        s.fellBack ? '<b>После 2 неудач раннер перешёл на запасную модель (muse-spark).</b>' : 'После 2 неудачных вызовов раннер переходит на запасную модель.'] };
+  },
+  status: () => s.blocked ? ({ c: 'no', route: 'pi-runner → Opus · итоговый ответ сабагента', title: 'BLOCKED: бюджет пункта исчерпан',
+      code: `STATUS: BLOCKED\nMODEL: deepseek-v4.1-flash → muse-spark-1.3-contributor (fallback)\nDONE: ${s.log.length ? s.log.join('; ') : '—'}\nSTUCK ON: ${s.item}. ${items()[s.item - 1][0]} — DONE WHEN: ${items()[s.item - 1][1]}\nTRIED: 8 вызовов; группировка работает, тест падает на порядке групп\nOBSERVED: AssertionError: groups order [3, 1, 2] != [1, 2, 3]\nHYPOTHESIS: тест ждёт порядок по другому полю, не по id\nNEEDS: решить, какой порядок групп правильный\nLESSONS: muse-spark упал по таймауту на промпте с 3 файлами; давать один файл`,
+      notes: ['Сырой вывод pi в контекст Opus не попадает, только этот отчёт.', 'Решает только Opus: перепланировать, разбить пункт или сделать его сам.'] })
+    : ({ c: 'hook', route: 'pi-runner → Opus · итоговый ответ сабагента', title: 'DONE',
+      code: `STATUS: DONE\nMODEL: ${s.fellBack ? 'deepseek-v4.1-flash → muse-spark-1.3-contributor (fallback)' : 'deepseek-v4.1-flash'}\nCHANGED:\n  app/catalog.py\n  templates/catalog.html\nTESTS: pytest tests/test_catalog.py — 12 passed\nSUMMARY: catalog_view группирует по category_id через itertools.groupby\n  после сортировки; шаблон пропускает группы без items.\nLESSONS: test_grouping нужен TEST_DATABASE_URL — source .env в той же оболочке`,
+      notes: ['LESSONS раннер сам дописал в <code>inbox.md</code>, это сырьё для обучения (раздел 2).', 'Opus читает diff CHANGED и сверяет с планом, а параллельно запускает verify.'] }),
+  replan: () => ({ c: 'opus', route: 'Opus', title: 'Новый пакет вокруг блокера',
+    code: '<span class="c"># v1 пункт 1 разбит на «выяснить» и «сделать»:</span>\n<span class="add">+ 1. Найти, по какому полю тест ожидает порядок групп</span>\n<span class="add">+    DONE WHEN: в отчёте строка tests/test_catalog.py:NN с полем</span>',
+    notes: ['Канала «на ходу» с сабагентом нет. Любая корректировка — это новый вызов с обновлённым чеклистом.'] }),
+  verify: () => ({ c: 'pi', route: 'Opus → новый pi-runner · Agent prompt', title: 'Verify-пакет: другой раннер, своя копия окружения',
+    code: `TYPE: verify\nGOAL: /catalog показывает товары по категориям, пустых нет\nWORKDIR: ${WD}\nSURFACE: browser http://localhost:8011/catalog\nBUILD: docker compose -p verify-a1 up -d --build\nBUDGET: 8\nCHECKLIST:\n  1. Сборка и тесты: pytest -q\n     DONE WHEN: строка "N passed", 0 failed\n  2. Открыть /catalog headless-браузером\n     DONE WHEN: в DOM 3 элемента h2.category, у каждого ≥1 товар\n  3. Teardown: docker compose -p verify-a1 down -v\n     DONE WHEN: docker compose ls не показывает verify-a1\nCONSTRAINTS: только своя копия verify-a1, teardown всегда, файлы в WORKDIR не править`,
+    notes: ['Проверяет не тот раннер, что писал код. Он только наблюдает и ничего не чинит.', 'Состояние читается как текст (DOM, логи). Скриншоты модели не показываются.'] }),
+  vres: () => ({ c: 'pi', route: 'verify → Opus', title: 'Отчёт verify',
+    code: 'STATUS: VERIFIED | FAILED | BLOCKED\nMODEL: muse-spark-1.3-contributor\nSURFACE: verify-a1 — torn down: yes\nSCENARIOS:\n  1. PASS — 13 passed\n  2. ??? — <span class="c">выбери кнопкой</span>\nLESSONS: NONE',
+    notes: ['MANUAL ставится, когда сценарий нельзя увидеть на этой поверхности (хаптика, скорость свайпа). Такие проверки уходят тебе.'] }),
+  fix: () => ({ c: 'no', route: 'verify → Opus', title: 'FAILED → новый code-пакет',
+    code: 'SCENARIOS:\n  2. FAIL — h2.category: ["Сервоприводы", "Датчики", "Контроллеры"],\n     ожидался порядок из админки (category.position)\n\n<span class="c"># Opus пишет фикс-пакет:</span>\n' + (s.fix = true, packetText()),
+    notes: ['Verify сам ничего не чинит. Фикс идёт новым code-пакетом, а за ним снова запускается verify.'] }),
+  manual: () => ({ c: 'human', route: 'verify → Opus → ты', title: 'MANUAL',
+    code: 'SCENARIOS:\n  2. MANUAL — плавность сворачивания групп не наблюдается в DOM',
+    notes: ['Opus передаёт тебе то, что машина увидеть не может.'] }),
+  accepted: () => ({ c: 'hook', route: 'Opus', title: 'Работа принята',
+    code: 'diff CHANGED совпадает с планом  ✓\nverify: VERIFIED                ✓',
+    notes: ['Сырого вывода pi Opus так и не увидел: только пакеты и отчёты.'] }),
+  end: () => ({ c: 'hook', route: 'Claude Code → хук плагина', title: 'SessionEnd: bash "${CLAUDE_PLUGIN_ROOT}/scripts/reflect.sh"',
+    code: '{"transcript_path": "~/.claude/projects/…/583c54c5….jsonl",\n "cwd": "' + WD + '"}',
+    notes: ['Хук получает JSON на stdin. Anthropic-токены дальше не тратятся.'] }),
+  hadrunner: () => ({ c: 'hook', route: 'reflect.sh', title: 'grep по транскрипту',
+    code: 'grep -qE \'"subagent_type": ?"[^"]*pi-runner"\' "$TRANSCRIPT" || exit 0',
+    notes: ['У тебя под это подходят 11 сессий из 115. Остальные транскрипты не покидают машину.'] }),
+  nothing: () => ({ c: 'hook', route: 'reflect.sh', title: 'exit 0', code: '<span class="c"># ничего не пишется и не отправляется</span>', notes: [] }),
+  compact: () => ({ c: 'hook', route: 'reflect.sh · jq', title: 'lessons/work/<id>.txt (≤120 КБ)',
+    code: 'USER: В каталоге товары перестали группироваться…\nTOOL Agent: {"subagent_type":"delegate-to-pi:pi-runner","prompt":"TYPE: code GOAL: …\nRESULT: STATUS: BLOCKED MODEL: deepseek-v4.1-flash → muse-spark… STUCK ON: 1…\nASSISTANT: Разбиваю пункт 1 на «выяснить порядок» и «сделать»…\n--- subagent a83f… ---\nTOOL Bash: {"command":"PI_RW=write perl -e \'alarm 600…\nRESULT: EXIT=142\n<span class="c">… одна строка на событие, ≤300 символов</span>',
+    notes: ['Потом берётся lock <code>lessons/.lock</code>: одновременно идёт одна рефлексия.'] }),
+  reflect: () => ({ c: 'opus', route: 'reflect.sh → claude -p · Opus · в фоне', title: 'Изолированный headless-запуск',
+    code: `<span class="cmd">$ cat work/583c54c5.txt inbox.md rules.md AGENTS.md MCP.md | \\\n    claude -p --model opus --setting-sources "" --tools "" --no-session-persistence \\\n      --system-prompt-file scripts/reflect-prompt.md "Reflect on the input."</span>\n\n<span class="c"># reflect-prompt.md (сокращённо):</span>\n1. RULES: ≤40 строк, только механика управления pi —\n   верно в любом репо. Стек и проект — не правила.\n2. DROPPED: всё, что не вошло, с причиной.\n3. PROPOSAL: проектные уроки → AGENTS.md / MCP.md своего проекта.\nOutput:\n=== RULES ===\n=== DROPPED ===\n=== PROPOSAL ===`,
+    notes: ['<code>--setting-sources ""</code>: твои хуки и плагины не грузятся, поэтому рекурсии нет. <code>--tools ""</code>: модель только читает вход.',
+      'Транскрипт уходит в Anthropic (~80 тыс. токенов на прогон). Работа pi-runner по-прежнему идёт в opencode-go.'] }),
+  pending: () => ({ c: 'opus', route: 'reflect.sh пишет файлы', title: 'rules.pending.md + rules.dropped.md + proposals/',
+    code: '<span class="c"># rules.md не тронут; inbox.md очищен</span>\nlessons/rules.pending.md      36 строк\nlessons/rules.dropped.md      28 строк: что выкинуто и почему\nlessons/proposals/…-583c.md   правки AGENTS.md (если есть)',
+    notes: ['Пример строки dropped: <code>"For SwiftUI use declaration-order init…" — moved to PROPOSAL (progress-app)</code>.', 'Следующая рефлексия, если ты ещё не ответил, строится на pending: уроки не теряются.'] }),
+  surface: () => ({ c: 'hook', route: 'хук → контекст Opus (одна строка)', title: 'SessionStart',
+    code: 'delegate-to-pi: рефлексия предлагает новые правила: …/rules.pending.md.\nПокажи человеку diff с rules.md; одобрит — mv, отклонит — удали.',
+    notes: ['Строка попадает в контекст, и Opus показывает тебе diff.'] }),
+  approve: () => ({ c: 'human', route: 'Opus → ты', title: 'diff rules.md rules.pending.md',
+    code: '<span class="add">+ - Source .env in the same shell before every DB test call.</span>\n<span class="add">+ - Give muse-spark one file per prompt; 3-file prompts hit the alarm.</span>\n<span class="del">- - Re-run every red test before accepting any pre-existing-failure claim.</span>\n<span class="c">  ↑ dropped: duplicate of the pytest rule — причина видна в rules.dropped.md</span>',
+    notes: ['Opus отмечает строки не про делегирование (команды, URL, креды): так могла бы выглядеть инъекция.'] }),
+  reject: () => ({ c: 'human', route: 'Opus', title: 'rm rules.pending.md', code: '<span class="c"># rules.md остаётся прежним</span>', notes: [] }),
+  applied: () => ({ c: 'haiku', route: 'Opus', title: 'mv rules.pending.md rules.md',
+    code: '<span class="c"># следующий pi-runner прочитает новые правила на шаге «Читает rules.md»</span>', notes: [] }),
+};
+
+const KEYS = {
+  'TYPE': 'Тип задачи. По нему раннер сам выбирает модель: code / simple / orchestrate → deepseek-v4.1-flash, research / review / verify → muse-spark, deep → deepseek-v4-pro (редко, дорого).',
+  'GOAL': 'Абзац о том, как выглядит «готово» целиком. Раннер повторяет его в каждом промпте для pi, потому что pi между вызовами ничего не помнит.',
+  'WORKDIR': 'Абсолютный путь, в котором раннер запускает pi. Все пути в пакете отсчитываются от него.',
+  'BUDGET': 'Сколько вызовов pi можно потратить на один пункт чеклиста (по умолчанию 8). Не уложился — пункт становится BLOCKED, раннер переходит к следующему и не жжёт квоту бесконечно.',
+  'CHECKLIST': 'Нумерованные шаги, до ~7 на пакет. Раннер идёт по ним по порядку: один пункт — серия вызовов pi до выполнения критерия.',
+  'DONE WHEN': 'Один проверяемый факт: тест проходит, grep находит строку, в выводе есть «N passed». Раннер проверяет его сам, а не верит pi на слово. «Сделать X» критерием не считается.',
+  'CONSTRAINTS': 'Чего нельзя: ветка, «без push», файлы и папки, которые не трогать, соглашения репо.',
+  'SURFACE': 'Где проверять (только verify): ios-sim, browser, docker или smoke. Для каждого прогона создаётся своя копия verify-<id>, чтобы не задеть твой симулятор или браузер.',
+  'BUILD': 'Точная команда сборки и запуска для verify-копии.',
+  'STEP': 'Текущий пункт чеклиста, который раннер передаёт pi.',
+  'DONE SO FAR': 'Память цикла: раннер после каждого вызова сжимает «что сделано» в 2–3 строки и передаёт сюда. Больше ~30 строк — старая половина сжимается.',
+  'PREVIOUS ATTEMPT': 'Что пошло не так в прошлом вызове: ошибка, упавший тест. Без этого pi повторил бы ту же попытку.',
+  'NEXT': 'Конкретное действие на этот вызов. Чем уже шаг, тем меньше таймаутов, особенно у muse-spark.',
+  'REPLY': 'Формат ответа pi: язык (иначе бывает китайский) и блок DONE в конце, по которому раннер понимает результат.',
+  'STATUS': 'Итог сабагента: DONE (всё выполнено), BLOCKED (застрял, решает Opus). Для verify: VERIFIED / FAILED / BLOCKED.',
+  'MODEL': 'Какие модели реально использовались. Стрелка «→» означает переход на запасную модель после двух неудач.',
+  'CHANGED': 'Изменённые файлы. Opus читает их diff и сверяет с планом.',
+  'TESTS': 'Какие команды проверки запускались и с каким итогом, или NOT RUN с причиной.',
+  'SUMMARY': '5–10 строк: что сделано и какие решения принял pi.',
+  'LESSONS': '0–3 факта, которые сэкономили бы вызовы в следующий раз. Раннер сам дописывает их в inbox.md, и отсюда они попадают в рефлексию.',
+  'DONE': 'Какие пункты успели выполнить до блокировки.',
+  'STUCK ON': 'На каком пункте и каком критерии раннер застрял.',
+  'TRIED': 'Что пробовал pi: сжато, с командами и выводом.',
+  'OBSERVED': 'Факты: тексты ошибок, логи.',
+  'HYPOTHESIS': 'Версия раннера, почему не сходится.',
+  'NEEDS': 'Что конкретно должен решить или дать Opus, чтобы продолжить.',
+  'SCENARIOS': 'По пункту на сценарий: PASS / FAIL / MANUAL плюс строка-доказательство (элемент DOM, строка лога).'
+};
+function hl(t) {
+  return t.split('\n').map(l => /^<span/.test(l) ? l : l.replace(/^(\s*)([A-Z][A-Z _]*):/, (m, sp, k) =>
+    KEYS[k.trim()] ? `${sp}<span class="k" data-k="${k.trim()}">${k}</span>:` : `${sp}<span class="k">${k}</span>:`)
+    .replace(/(\s)(DONE WHEN):/, (m, sp, k) => `${sp}<span class="k" data-k="${k}">${k}</span>:`)).join('\n');
+}
+const pop = document.getElementById('pop');
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-k]');
+  if (!k) { pop.classList.remove('on'); return; }
+  pop.innerHTML = `<b>${k.dataset.k}</b>${KEYS[k.dataset.k]}`;
+  pop.classList.add('on');
+  const r = k.getBoundingClientRect(), w = Math.min(340, innerWidth - 24);
+  pop.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px';
+  const h = pop.offsetHeight;
+  pop.style.top = (r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8) + 'px';
+});
+document.getElementById('panel').addEventListener('scroll', () => pop.classList.remove('on'));
+
+let cur = 'start';
+function go(id) {
+  if (id === 'start') s = { item: 1, calls: 0, total: 0, model: 'deepseek-v4.1-flash', fellBack: false, blocked: false, ver: 1, fix: false, log: [] }, seen.clear();
+  cur = id; seen.add(id);
+  const p = P[id]();
+  document.querySelectorAll('.node').forEach(n => {
+    const k = n.id.slice(2); n.classList.toggle('on', k === id); n.classList.toggle('seen', seen.has(k));
+  });
+  document.querySelectorAll('.arr, .harr').forEach(a => a.classList.remove('hot'));
+  if (arrowsTo[id]) document.getElementById(arrowsTo[id]).classList.add('hot');
+  document.querySelectorAll('.btns').forEach(b => b.classList.toggle('on', b.id === 'b-' + id));
+  if (id === 'status') {
+    document.getElementById('b-status').innerHTML = s.blocked
+      ? '<button class="no" onclick="go(\'replan\')">BLOCKED →</button>'
+      : '<button class="yes" onclick="go(\'verify\')">DONE ↓ verify</button>';
+  }
+  document.getElementById('cnt').textContent = (id === 'call') ? `пункт ${s.item}/${items().length} · вызов ${s.calls + 1}/8` : '';
+  const panel = document.getElementById('panel');
+  panel.style.setProperty('--pc', `var(--${p.c})`);
+  document.getElementById('p-route').textContent = p.route;
+  document.getElementById('p-title').textContent = p.title;
+  document.getElementById('p-code').innerHTML = hl(p.code);
+  document.getElementById('p-hint').style.display = document.querySelector('#p-code [data-k]') ? '' : 'none';
+  document.getElementById('p-notes').innerHTML = p.notes.map(n => `<li>${n}</li>`).join('');
+  panel.scrollTop = 0;
+  document.getElementById('n-' + id).scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function ok() {
+  s.log.push(`${s.item}. ${items()[s.item - 1][0]} → ✓ (${s.calls + 1} вызов.)`);
+  if (s.item < items().length) { s.item++; s.calls = 0; go('call'); } else go('status');
+}
+function fail() {
+  s.calls++;
+  if (s.calls >= 2 && !s.fellBack) { s.fellBack = true; s.model = 'muse-spark-1.3-contributor'; }
+  if (s.calls >= 8) { s.blocked = true; go('status'); } else go('call');
+}
+function exhaust() { s.calls = 8; s.fellBack = true; s.blocked = true; go('status'); }
+function replan() { s.ver = 2; s.item = 1; s.calls = 0; s.blocked = false; s.log = []; s.fellBack = false; s.model = 'deepseek-v4.1-flash'; go('packet'); }
+function fixLoop() { s.item = 1; s.calls = 0; s.blocked = false; s.log = []; s.fellBack = false; s.model = 'deepseek-v4.1-flash'; go('packet'); }
+
+go('start');
+</script>
+</body>
+</html>
