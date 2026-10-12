@@ -2,6 +2,10 @@
 
 Create beautiful, distinctive UIs that avoid generic AI aesthetics.
 
+```bash
+/plugin install ui-designer@zhilin-cc-plugins
+```
+
 ## Overview
 
 This plugin helps non-UI developers create exceptional user interfaces by:
