@@ -1,34 +1,34 @@
 ---
 name: ui-quality-reviewer
-description: Use this agent when the user has just written or modified significant UI code (>50 lines changed) to proactively review for generic AI aesthetic patterns. Examples:
+description: |
+  Use this agent when the user has just written or modified significant UI code (>50 lines changed) to proactively review for generic AI aesthetic patterns. Examples:
 
-<example>
-Context: User just created a new React landing page component with 120 lines of code
-user: "I've created the landing page component"
-assistant: "I'll use the ui-quality-reviewer agent to check the UI for generic patterns and aesthetic quality."
-<commentary>
-The user completed a significant UI implementation, so proactively review it for generic patterns before they notice issues themselves.
-</commentary>
-</example>
+  <example>
+  Context: User just created a new React landing page component with 120 lines of code
+  user: "I've created the landing page component"
+  assistant: "I'll use the ui-quality-reviewer agent to check the UI for generic patterns and aesthetic quality."
+  <commentary>
+  The user completed a significant UI implementation, so proactively review it for generic patterns before they notice issues themselves.
+  </commentary>
+  </example>
 
-<example>
-Context: User modified a dashboard component, changing 85 lines of styling code
-user: "Updated the dashboard styles"
-assistant: "Let me use the ui-quality-reviewer agent to analyze the style changes and ensure they follow creative design principles."
-<commentary>
-Significant style changes warrant automatic review to catch generic patterns early.
-</commentary>
-</example>
+  <example>
+  Context: User modified a dashboard component, changing 85 lines of styling code
+  user: "Updated the dashboard styles"
+  assistant: "Let me use the ui-quality-reviewer agent to analyze the style changes and ensure they follow creative design principles."
+  <commentary>
+  Significant style changes warrant automatic review to catch generic patterns early.
+  </commentary>
+  </example>
 
-<example>
-Context: User built a new form component with custom styling
-user: "Done with the signup form"
-assistant: "I'll review the form design with the ui-quality-reviewer agent to check for distinctive aesthetics."
-<commentary>
-New UI components should be proactively reviewed for creative design quality.
-</commentary>
-</example>
-
+  <example>
+  Context: User built a new form component with custom styling
+  user: "Done with the signup form"
+  assistant: "I'll review the form design with the ui-quality-reviewer agent to check for distinctive aesthetics."
+  <commentary>
+  New UI components should be proactively reviewed for creative design quality.
+  </commentary>
+  </example>
 model: inherit
 color: magenta
 tools: ["Read", "Write", "Edit", "Grep", "Glob", "mcp__playwright__*"]
