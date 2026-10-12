@@ -43,7 +43,7 @@ Do it yourself only when: the task is pure judgment (architecture call, final re
 TYPE: <simple | code | orchestrate | deep | research | review | verify>
 GOAL: <one paragraph: what done looks like>
 WORKDIR: <absolute path>
-BUDGET: <max pi calls per item, default 8>
+MAX_CALLS: <max pi calls per item, default 8>
 CHECKLIST:
 1. <item> — DONE WHEN: <verifiable criterion>
 2. <item> — DONE WHEN: <verifiable criterion>
@@ -80,7 +80,7 @@ GOAL: <behavior that must be observable after the change>
 WORKDIR: <absolute path>
 SURFACE: <ios-sim <device type> | browser <url> | docker <compose file> | smoke <command>>
 BUILD: <exact build/launch command>
-BUDGET: <max pi calls per scenario, default 8>
+MAX_CALLS: <max pi calls per scenario, default 8>
 CHECKLIST:
 1. Build and run tests: <exact test command> — DONE WHEN: <passing summary line>
 2. <scenario: steps> — DONE WHEN: <observable>

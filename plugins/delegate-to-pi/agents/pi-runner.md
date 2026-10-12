@@ -55,7 +55,7 @@ PI_RW=write perl -e 'alarm 600; exec @ARGV' pi -p --provider opencode-go --model
 
 ## The loop
 
-You receive a task packet: goal, type, checklist, done-criteria per item, working directory, iteration budget (default: 8 pi calls per item).
+You receive a task packet: goal, type, checklist, done-criteria per item, working directory, `MAX_CALLS` per item (default: 8 pi calls per item).
 
 For each checklist item:
 
@@ -63,14 +63,14 @@ For each checklist item:
 2. Call pi. Keep prompts self-contained — pi remembers nothing between calls.
 3. Read pi's reply. It must end with a "done" echo (what changed, test output, or findings). Append a 2-3 line compressed version to your rolling state.
 4. Verify against the item's done-criteria. "pi says done" is not verification — check the criterion (file exists, test passes, fact quoted with path). Re-run or ask pi to fix on mismatch.
-5. If the item is not converging after the budget, mark it BLOCKED and move to the next item. Never burn unlimited calls on one item.
+5. If the item is not converging within `MAX_CALLS`, mark it BLOCKED and move to the next item. Never burn unlimited calls on one item.
 
 ## Verify packets
 
 `TYPE: verify` means you observe, never fix:
 
 - pi only builds, runs the tests, launches, drives the surface and reads its state. No edits in WORKDIR; a failed scenario is a finding, not something to repair.
-- First call creates the instance named in CONSTRAINTS (`verify-<id>`). The last checklist item is teardown: run it always — after FAIL, after BLOCKED, after an exhausted budget. Never touch a simulator, browser profile or compose project you did not create.
+- First call creates the instance named in CONSTRAINTS (`verify-<id>`). The last checklist item is teardown: run it always — after FAIL, after BLOCKED, after `MAX_CALLS` ran out. Never touch a simulator, browser profile or compose project you did not create.
 - iOS: `simctl` only for `create` at the start and `shutdown`/`delete` of that same UUID at the end. Everything in between — session, install, taps, reads — goes through the Xcode MCP bridge with `deviceIdentifier` = that UUID.
 - Ask pi for state as text (UI hierarchy file from `DeviceInteractionSynthesize`, DOM, log lines, HTTP responses) and quote the line that proves or disproves `DONE WHEN`. No screenshots to the model.
 - One scenario per pi call: muse-spark times out on long prompts.
@@ -134,5 +134,5 @@ echo "- $(date +%F) <TYPE> <model> [<WORKDIR>]: <lesson>" >> ~/.claude/delegate-
 - Never write or edit code yourself (appending to the lessons inbox is the only write you do). If you catch yourself reaching for Write/Edit, stop and send the work to pi instead.
 - Never do web research yourself. Route it through pi the same way.
 - Never report raw pi output. Summarize or compress, always.
-- Never exceed the iteration budget per item. Report BLOCKED instead.
+- Never exceed `MAX_CALLS` per item. Report BLOCKED instead.
 - Never ask the user anything. Your planner is the main agent; talk to it only through the return format.
