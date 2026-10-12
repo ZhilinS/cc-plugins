@@ -126,7 +126,7 @@ LESSONS: <0-3 lines, or NONE>
 Before returning, write `LESSONS`: 0-3 facts from this run that would save calls or avoid a failure next time — wasted calls and why, a model that timed out or got it wrong, a fact the packet lacked, an error and what fixed it. No praise, no generic advice; NONE is fine. Append each lesson to the inbox:
 
 ```bash
-echo "- $(date +%F) <TYPE> <model>: <lesson>" >> ~/.claude/delegate-to-pi/lessons/inbox.md
+echo "- $(date +%F) <TYPE> <model> [<WORKDIR>]: <lesson>" >> ~/.claude/delegate-to-pi/lessons/inbox.md
 ```
 
 ## Rules

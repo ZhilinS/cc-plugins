@@ -1,8 +1,8 @@
 #!/bin/bash
-# SessionEnd hook: compact the session transcript, then let pi draft new lessons in the background.
+# SessionEnd hook: compact the session transcript, then let Claude Opus draft new lessons in the background.
 # Only sessions that spawned pi-runner are reflected. The new rules land in rules.pending.md
 # and reach rules.md only after the human approves them (see SKILL.md).
-# Modes: reflect.sh [<transcript> <cwd>]   |   reflect.sh --pi <id> <cwd>
+# Modes: reflect.sh [<transcript> <cwd>]   |   reflect.sh --run <id> <cwd>
 
 DIR=$(cd "$(dirname "$0")" && pwd)
 LESSONS=$HOME/.claude/delegate-to-pi/lessons
@@ -10,7 +10,7 @@ LOG=$LESSONS/reflect.log
 mkdir -p "$LESSONS/work" "$LESSONS/proposals"
 touch "$LESSONS/rules.md" "$LESSONS/inbox.md"
 
-if [ "$1" = "--pi" ]; then
+if [ "$1" = "--run" ]; then
   ID=$2
   PROJECT=$3
   W=$LESSONS/work/$ID.txt
@@ -31,41 +31,23 @@ if [ "$1" = "--pi" ]; then
   BASE=$LESSONS/rules.md
   [ -f "$LESSONS/rules.pending.md" ] && BASE=$LESSONS/rules.pending.md
 
-  FILES=("@$W" "@$LESSONS/inbox.md" "@$BASE")
+  FILES=("$W" "$LESSONS/inbox.md" "$BASE")
   for F in "$PROJECT/AGENTS.md" "$PROJECT/MCP.md"; do
-    [ -f "$F" ] && FILES+=("@$F")
+    [ -f "$F" ] && FILES+=("$F")
   done
 
-  read -r -d '' PROMPT <<'PROMPT_EOF'
-You are the reflection step of the delegate-to-pi skill. Claude Code delegates work to the pi CLI (a text-only model). This step learns from one finished session.
-
-Attached files:
-- the session's compacted transcript: one event per line (USER:, ASSISTANT:, TOOL <name>:, RESULT:). Subagent events follow the main session after a "--- subagent" line.
-- inbox.md: raw lessons appended since the last reflection.
-- rules.md: the current consolidated rules.
-- AGENTS.md and MCP.md of the project, when attached.
-
-Do two things.
-
-1. RULES: write the complete new rules.md. At most 40 lines, each an imperative one-line rule about delegating work to pi: task packet shape, model choice and fallback, timeouts and empty stdin, prompt shape and length, output format, tool quirks. Merge the current rules, the inbox lines, and lessons visible in the transcript (calls that hung, timed out, returned wrong or empty output, wasted calls, prompt shapes that failed). Drop duplicates and stale rules. Use only facts present in the inputs; invent nothing. Start each line with "- ". No title, no commentary.
-
-2. PROPOSAL: propose edits to the project docs AGENTS.md or MCP.md only when the transcript shows a concrete fact about this project (iOS simulator, iPhone/Xcode MCP bridge, build gotchas) that those docs lack. For each edit give: "File: <AGENTS.md or MCP.md>", "Anchor: <existing heading or line the text goes after>", "Text:" with the exact text to add in the language of the target file, and "Evidence:" one line naming the transcript event. Skip anything already present in those files and any style advice. If nothing qualifies, reply NONE.
-
-Output exactly two sections and nothing else, no markdown code fences:
-=== RULES ===
-<complete rules.md content>
-=== PROPOSAL ===
-<NONE, or the edits>
-PROMPT_EOF
-
-  OUT=$(perl -e 'alarm 900; exec @ARGV' pi -p --provider opencode-go --model muse-spark-1.3-contributor --no-session "$PROMPT" "${FILES[@]}" </dev/null 2>>"$LOG")
+  # Isolated headless run: no user/project settings (so no hooks or plugins, no recursion), no tools, no saved session.
+  OUT=$(for F in "${FILES[@]}"; do printf '##### FILE: %s\n' "$(basename "$F")"; cat "$F"; echo; done |
+    perl -e 'alarm 900; exec @ARGV' claude -p --model opus --setting-sources "" --tools "" --no-session-persistence \
+      --system-prompt-file "$DIR/reflect-prompt.md" "Reflect on the input." 2>>"$LOG")
   RC=$?
   if [ "$RC" -ne 0 ] || [ -z "$OUT" ]; then
-    printf '%s %s pi rc=%s, nothing written\n' "$(date '+%F %T')" "$ID" "$RC" >>"$LOG"
+    printf '%s %s claude rc=%s, nothing written\n' "$(date '+%F %T')" "$ID" "$RC" >>"$LOG"
     exit 0
   fi
 
-  RULES=$(printf '%s\n' "$OUT" | sed -n '/^=== RULES ===$/,/^=== PROPOSAL ===$/p' | sed '1d;$d')
+  RULES=$(printf '%s\n' "$OUT" | sed -n '/^=== RULES ===$/,/^=== DROPPED ===$/p' | sed '1d;$d')
+  DROPPED=$(printf '%s\n' "$OUT" | sed -n '/^=== DROPPED ===$/,/^=== PROPOSAL ===$/p' | sed '1d;$d')
   PROPOSAL=$(printf '%s\n' "$OUT" | sed -n '/^=== PROPOSAL ===$/,$p' | sed '1d')
 
   if [ -z "$RULES" ]; then
@@ -74,6 +56,7 @@ PROMPT_EOF
   fi
 
   printf '%s\n' "$RULES" >"$LESSONS/rules.pending.md"
+  printf '## %s %s\n%s\n\n' "$(date +%F)" "$ID" "$DROPPED" >>"$LESSONS/rules.dropped.md"
   : >"$LESSONS/inbox.md"
 
   PROP=no
@@ -81,7 +64,7 @@ PROMPT_EOF
   if [ -n "$PN" ] && [ "$PN" != "NONE" ]; then
     {
       printf '# Предложения рефлексии\n'
-      printf 'Проект: %s\n' "$PROJECT"
+      printf 'Сессия в проекте: %s\n' "$PROJECT"
       printf 'Сессия: %s\n' "$ID"
       printf '\n%s\n' "$PROPOSAL"
     } >"$LESSONS/proposals/$(date +%F)-${ID:0:8}.md"
@@ -140,6 +123,6 @@ if [ "$(wc -c <"$TMP")" -gt 120000 ]; then
   mv "$TMP.tmp" "$TMP"
 fi
 
-nohup bash "$DIR/reflect.sh" --pi "$ID" "$PROJECT" </dev/null >>"$LOG" 2>&1 &
+nohup bash "$DIR/reflect.sh" --run "$ID" "$PROJECT" </dev/null >>"$LOG" 2>&1 &
 disown
 exit 0

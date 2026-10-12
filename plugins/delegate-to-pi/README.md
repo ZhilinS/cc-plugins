@@ -9,7 +9,7 @@ Claude plans, [pi](https://github.com/badlogic/pi-mono) executes. A Haiku subage
 /plugin install delegate-to-pi@zhilin-cc-plugins
 ```
 
-Needs `pi` on `PATH`, an opencode-go provider with a Go subscription, `jq` and `perl`.
+Needs `pi` on `PATH`, an opencode-go provider with a Go subscription, the `claude` CLI logged in, `jq` and `perl`.
 
 ## What's inside
 
@@ -19,12 +19,12 @@ Needs `pi` on `PATH`, an opencode-go provider with a Go subscription, `jq` and `
 
 ## Lessons
 
-Each user grows their own lessons in `~/.claude/delegate-to-pi/lessons/`; the plugin ships none. `pi-runner` appends what it learned to `inbox.md`, and after a session that used it, reflection asks pi to fold the inbox and the session into a new `rules.md`.
+Each user grows their own lessons in `~/.claude/delegate-to-pi/lessons/`; the plugin ships none. `pi-runner` appends what it learned to `inbox.md`, and after a session that used it, reflection asks Claude Opus (headless `claude -p`, isolated from your settings and hooks) to fold the inbox and the session into a new `rules.md`. Rules cover only the mechanics of driving pi; lessons about one project or stack are proposed for that project's `AGENTS.md` instead.
 
-The new rules arrive as `rules.pending.md` and are applied only after you approve the diff, because `pi-runner` follows `rules.md` with a shell and reflection reads untrusted text (web pages, repo files, pi output).
+The new rules arrive as `rules.pending.md`, with `rules.dropped.md` listing what was left out and why, and are applied only after you approve the diff, because `pi-runner` follows `rules.md` with a shell and reflection reads untrusted text (web pages, repo files, pi output).
 
 ## Before you install
 
-- **Data leaves the machine.** After every session that spawned `pi-runner`, a compacted transcript (up to 120 KB, the first 300 characters of every message and tool result) goes to opencode-go. If such a session read a `.env`, its beginning goes too. Sessions without `pi-runner` are not sent.
+- **Where data goes.** pi-runner's work goes to opencode-go, as delegated. After every session that spawned `pi-runner`, a compacted transcript (up to 120 KB, the first 300 characters of every message and tool result) goes to Anthropic for reflection, on Opus (~80k input tokens per run). Sessions without `pi-runner` are not reflected.
 - **pi gets a shell.** `pi-runner` calls pi with write access, bash and web search. How far that reaches depends on your Claude Code permission mode.
 - `PI_RW=write` is set on every call for a pi extension that starts pi read-only; without that extension it does nothing.
