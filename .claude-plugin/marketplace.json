@@ -20,6 +20,12 @@
       "description": "Write a perfect code using provided code rules and samples",
       "source": "./plugins/refactoring-guru",
       "category": "development"
+    },
+    {
+      "name": "delegate-to-pi",
+      "description": "Plan in Claude, execute in pi on opencode-go models, learn from each run",
+      "source": "./plugins/delegate-to-pi",
+      "category": "development"
     }
   ]
 }
