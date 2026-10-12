@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="explainer-rev" content="2">
+<meta name="explainer-rev" content="3">
 <title>delegate-to-pi: симулятор</title>
 <style>
   body { margin: 0; background: var(--agterm-background, Canvas); color: var(--agterm-foreground, CanvasText);
@@ -200,7 +200,7 @@
     <div class="arr" id="a-rules"></div>
 
     <div class="node dec" id="n-call" style="--c: var(--pi)"><span class="who">pi-runner → pi</span><span class="t">DONE WHEN выполнен?</span><span class="cnt" id="cnt"></span></div>
-    <div class="btns" id="b-call"><button class="yes" onclick="ok()">Да ✓</button><button class="no" onclick="fail()">Нет ✗</button><button class="ghost" onclick="exhaust()">⏭ исчерпать бюджет</button></div>
+    <div class="btns" id="b-call"><button class="yes" onclick="ok()">Да ✓</button><button class="no" onclick="fail()">Нет ✗</button><button class="ghost" onclick="exhaust()">⏭ исчерпать лимит вызовов</button></div>
     <div class="arr" id="a-call"></div>
 
     <div class="row">
@@ -313,7 +313,7 @@ function packetText() {
     'TYPE: code' + (s.ver === 2 && !s.fix ? '            # v2 после BLOCKED' : ''),
     'GOAL: ' + (s.fix ? 'Группы в каталоге идут в порядке category.position.' : 'Товары в каталоге сгруппированы по категориям, пустые категории скрыты.'),
     'WORKDIR: ' + WD,
-    'BUDGET: 8',
+    'MAX_CALLS: 8',
     'CHECKLIST:',
     ...its.flatMap((it, i) => [`  ${i + 1}. ${it[0]}`, `     DONE WHEN: ${it[1]}`]),
     'CONSTRAINTS: ветка fix/catalog-grouping, коммит без push; не трогать migrations/'
@@ -350,7 +350,7 @@ const P = {
         'Ответу pi раннер не верит, а сам проверяет DONE WHEN: запускает тест или grep.',
         s.fellBack ? '<b>После 2 неудач раннер перешёл на запасную модель (muse-spark).</b>' : 'После 2 неудачных вызовов раннер переходит на запасную модель.'] };
   },
-  status: () => s.blocked ? ({ c: 'no', route: 'pi-runner → Opus · итоговый ответ сабагента', title: 'BLOCKED: бюджет пункта исчерпан',
+  status: () => s.blocked ? ({ c: 'no', route: 'pi-runner → Opus · итоговый ответ сабагента', title: 'BLOCKED: лимит вызовов исчерпан',
       code: `STATUS: BLOCKED\nMODEL: deepseek-v4.1-flash → muse-spark-1.3-contributor (fallback)\nDONE: ${s.log.length ? s.log.join('; ') : '—'}\nSTUCK ON: ${s.item}. ${items()[s.item - 1][0]} — DONE WHEN: ${items()[s.item - 1][1]}\nTRIED: 8 вызовов; группировка работает, тест падает на порядке групп\nOBSERVED: AssertionError: groups order [3, 1, 2] != [1, 2, 3]\nHYPOTHESIS: тест ждёт порядок по другому полю, не по id\nNEEDS: решить, какой порядок групп правильный\nLESSONS: muse-spark упал по таймауту на промпте с 3 файлами; давать один файл`,
       notes: ['Сырой вывод pi в контекст Opus не попадает, только этот отчёт.', 'Решает только Opus: перепланировать, разбить пункт или сделать его сам.'] })
     : ({ c: 'hook', route: 'pi-runner → Opus · итоговый ответ сабагента', title: 'DONE',
@@ -360,7 +360,7 @@ const P = {
     code: '<span class="c"># v1 пункт 1 разбит на «выяснить» и «сделать»:</span>\n<span class="add">+ 1. Найти, по какому полю тест ожидает порядок групп</span>\n<span class="add">+    DONE WHEN: в отчёте строка tests/test_catalog.py:NN с полем</span>',
     notes: ['Канала «на ходу» с сабагентом нет. Любая корректировка — это новый вызов с обновлённым чеклистом.'] }),
   verify: () => ({ c: 'pi', route: 'Opus → новый pi-runner · Agent prompt', title: 'Verify-пакет: другой раннер, своя копия окружения',
-    code: `TYPE: verify\nGOAL: /catalog показывает товары по категориям, пустых нет\nWORKDIR: ${WD}\nSURFACE: browser http://localhost:8011/catalog\nBUILD: docker compose -p verify-a1 up -d --build\nBUDGET: 8\nCHECKLIST:\n  1. Сборка и тесты: pytest -q\n     DONE WHEN: строка "N passed", 0 failed\n  2. Открыть /catalog headless-браузером\n     DONE WHEN: в DOM 3 элемента h2.category, у каждого ≥1 товар\n  3. Teardown: docker compose -p verify-a1 down -v\n     DONE WHEN: docker compose ls не показывает verify-a1\nCONSTRAINTS: только своя копия verify-a1, teardown всегда, файлы в WORKDIR не править`,
+    code: `TYPE: verify\nGOAL: /catalog показывает товары по категориям, пустых нет\nWORKDIR: ${WD}\nSURFACE: browser http://localhost:8011/catalog\nBUILD: docker compose -p verify-a1 up -d --build\nMAX_CALLS: 8\nCHECKLIST:\n  1. Сборка и тесты: pytest -q\n     DONE WHEN: строка "N passed", 0 failed\n  2. Открыть /catalog headless-браузером\n     DONE WHEN: в DOM 3 элемента h2.category, у каждого ≥1 товар\n  3. Teardown: docker compose -p verify-a1 down -v\n     DONE WHEN: docker compose ls не показывает verify-a1\nCONSTRAINTS: только своя копия verify-a1, teardown всегда, файлы в WORKDIR не править`,
     notes: ['Проверяет не тот раннер, что писал код. Он только наблюдает и ничего не чинит.', 'Состояние читается как текст (DOM, логи). Скриншоты модели не показываются.'] }),
   vres: () => ({ c: 'pi', route: 'verify → Opus', title: 'Отчёт verify',
     code: 'STATUS: VERIFIED | FAILED | BLOCKED\nMODEL: muse-spark-1.3-contributor\nSURFACE: verify-a1 — torn down: yes\nSCENARIOS:\n  1. PASS — 13 passed\n  2. ??? — <span class="c">выбери кнопкой</span>\nLESSONS: NONE',
@@ -406,7 +406,7 @@ const KEYS = {
   'TYPE': 'Тип задачи. По нему раннер сам выбирает модель: code / simple / orchestrate → deepseek-v4.1-flash, research / review / verify → muse-spark, deep → deepseek-v4-pro (редко, дорого).',
   'GOAL': 'Абзац о том, как выглядит «готово» целиком. Раннер повторяет его в каждом промпте для pi, потому что pi между вызовами ничего не помнит.',
   'WORKDIR': 'Абсолютный путь, в котором раннер запускает pi. Все пути в пакете отсчитываются от него.',
-  'BUDGET': 'Сколько вызовов pi можно потратить на один пункт чеклиста (по умолчанию 8). Не уложился — пункт становится BLOCKED, раннер переходит к следующему и не жжёт квоту бесконечно.',
+  'MAX_CALLS': 'Сколько вызовов pi можно потратить на один пункт чеклиста (по умолчанию 8). Не уложился — пункт становится BLOCKED, раннер переходит к следующему и не жжёт квоту бесконечно.',
   'CHECKLIST': 'Нумерованные шаги, до ~7 на пакет. Раннер идёт по ним по порядку: один пункт — серия вызовов pi до выполнения критерия.',
   'DONE WHEN': 'Один проверяемый факт: тест проходит, grep находит строку, в выводе есть «N passed». Раннер проверяет его сам, а не верит pi на слово. «Сделать X» критерием не считается.',
   'CONSTRAINTS': 'Чего нельзя: ветка, «без push», файлы и папки, которые не трогать, соглашения репо.',
