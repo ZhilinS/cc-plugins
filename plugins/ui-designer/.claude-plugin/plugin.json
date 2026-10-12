@@ -1,9 +1,0 @@
-{
-  "name": "ui-designer",
-  "version": "0.1.1",
-  "description": "Create beautiful, distinctive UIs that avoid generic AI aesthetics. Auto-triggers on UI work with curated design guidance.",
-  "author": {
-    "name": "Sergey Zhilin"
-  },
-  "keywords": ["ui", "design", "frontend", "aesthetics", "creative"]
-}

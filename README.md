@@ -17,8 +17,6 @@ Pull later changes with `/plugin marketplace update zhilin-cc-plugins`, then `/p
 |---|---|
 | [delegate-to-pi](plugins/delegate-to-pi) | Claude plans, a Haiku subagent drives the pi CLI on opencode-go models; learns rules from each run, applied after your approval |
 | [agterm-visuals](plugins/agterm-visuals) | Diagrams and interactive walkthroughs as HTML pages in agterm's right pane, with comments sent back to the chat |
-| [refactoring-guru](plugins/refactoring-guru) | Curated code style rules, patterns and architecture guidance for dedicated refactoring sessions |
-| [ui-designer](plugins/ui-designer) | Distinctive UI design guidance that avoids generic AI aesthetics |
 
 Each plugin's README covers setup, requirements and where it keeps its data.
 
