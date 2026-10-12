@@ -26,6 +26,12 @@
       "description": "Diagrams and interactive walkthroughs as HTML pages in agterm's right split pane",
       "source": "./plugins/agterm-visuals",
       "category": "productivity"
+    },
+    {
+      "name": "delegate-to-pi",
+      "description": "Plan in Claude, execute in pi on opencode-go models, learn from each run",
+      "source": "./plugins/delegate-to-pi",
+      "category": "development"
     }
   ]
 }
