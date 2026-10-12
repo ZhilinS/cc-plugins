@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<meta name="explainer-rev" content="2">
 <title>delegate-to-pi: симулятор</title>
 <style>
   body { margin: 0; background: var(--agterm-background, Canvas); color: var(--agterm-foreground, CanvasText);
@@ -92,6 +93,78 @@
   .notes li { margin: 2px 0; }
   code { font: 12px ui-monospace, Menlo, monospace; background: color-mix(in srgb, var(--fg) 10%, transparent); padding: 1px 4px; border-radius: 4px; }
 </style>
+<style id="cm-style">
+  /* ===== Comments to chat: paste this style + the script below into any explainer ===== */
+  body { --cm-fg: var(--agterm-foreground, CanvasText); --cm-bg: var(--agterm-background, Canvas);
+    --cm-acc: var(--agterm-color-3, #c99a1c); --cm-no: var(--agterm-color-1, #d04040);
+    --cm-dim: color-mix(in srgb, var(--cm-fg) 55%, transparent);
+    --cm-line: color-mix(in srgb, var(--cm-fg) 40%, transparent); }
+  #cm-root { position: fixed; top: 10px; right: 16px; max-width: calc(100vw - 32px); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: var(--cm-fg); }
+  #cm-root button { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 999px; padding: 4px 11px;
+    color: var(--cm-fg); border: 1.5px solid var(--cm-line);
+    background: linear-gradient(color-mix(in srgb, var(--cm-fg) 8%, var(--cm-bg)), color-mix(in srgb, var(--cm-fg) 8%, var(--cm-bg))), Canvas; }
+  #cm-root button:hover:not(:disabled) { border-color: var(--cm-acc); }
+  #cm-root button:disabled { opacity: .45; cursor: default; }
+  #cm-root button.pri { border-color: var(--cm-acc); color: var(--cm-acc); }
+  #cm-bar { display: flex; gap: 6px; padding: 4px; border-radius: 999px; border: 1.5px solid var(--cm-line);
+    background: linear-gradient(var(--cm-bg), var(--cm-bg)), Canvas; box-shadow: 0 4px 14px color-mix(in srgb, #000 22%, transparent); }
+  #cm-bar button { border-color: transparent; }
+  #cm-mode[aria-pressed="true"] { border-color: var(--cm-acc); color: var(--cm-acc);
+    background: linear-gradient(color-mix(in srgb, var(--cm-acc) 22%, var(--cm-bg)), color-mix(in srgb, var(--cm-acc) 22%, var(--cm-bg))), Canvas; }
+  #cm-count { display: inline-block; min-width: 1.3em; margin-left: 4px; padding: 0 5px; border-radius: 999px; font-size: 11px; text-align: center;
+    background: color-mix(in srgb, var(--cm-fg) 18%, transparent); }
+  #cm-count.has { background: var(--cm-acc); color: var(--cm-bg); }
+  #cm-drawer { display: none; width: min(380px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding: 8px 10px 10px;
+    border-radius: 10px; border: 1.5px solid var(--cm-line); box-sizing: border-box;
+    background: linear-gradient(var(--cm-bg), var(--cm-bg)), Canvas; box-shadow: 0 8px 24px color-mix(in srgb, #000 30%, transparent); }
+  #cm-drawer.on { display: block; }
+  .cm-empty { color: var(--cm-dim); padding: 4px 0 8px; }
+  .cm-item { display: flex; gap: 6px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--cm-fg) 14%, transparent); }
+  .cm-main { flex: 1; min-width: 0; cursor: text; border-radius: 4px; }
+  .cm-main:hover { background: color-mix(in srgb, var(--cm-acc) 12%, transparent); }
+  .cm-lab { color: var(--cm-acc); font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cm-txt { overflow-wrap: anywhere; white-space: normal; }
+  .cm-old { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 10.5px; font-weight: 500; vertical-align: 1px;
+    color: var(--cm-dim); border: 1px solid var(--cm-line); }
+  .cm-histhead { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 2px; font-size: 11px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--cm-dim); }
+  .cm-sent { opacity: .55; }
+  .cm-sent .cm-main { cursor: default; }
+  .cm-sent .cm-main:hover { background: none; }
+  .cm-sep { margin: 8px 0 2px; text-align: center; font-size: 11.5px; color: var(--cm-dim); }
+  #cm-root .cm-x { padding: 0 6px; line-height: 1.4; border-color: transparent; background: none; color: var(--cm-dim); }
+  #cm-root .cm-x:hover:not(:disabled) { color: var(--cm-no); border-color: var(--cm-no); }
+  .cm-foot { display: flex; gap: 6px; margin-top: 8px; }
+  #cm-root button.sm { font-size: 11px; font-weight: 500; padding: 1px 8px; text-transform: none; letter-spacing: 0; }
+  #cm-status { margin-top: 6px; font-size: 12px; color: var(--cm-dim); overflow-wrap: anywhere; }
+  #cm-status.err { color: var(--cm-no); }
+  #cm-fallback[hidden] { display: none; }
+  #cm-fallback { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; font: 12px/1.4 ui-monospace, Menlo, monospace; color: var(--cm-fg);
+    background: color-mix(in srgb, var(--cm-fg) 8%, var(--cm-bg)); border: 1px solid var(--cm-line); border-radius: 6px; padding: 6px; }
+
+  /* inline editor */
+  #cm-ed { position: fixed; display: none; width: min(320px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px 10px; border-radius: 10px;
+    border: 1.5px solid var(--cm-acc); background: linear-gradient(var(--cm-bg), var(--cm-bg)), Canvas;
+    box-shadow: 0 8px 24px color-mix(in srgb, #000 35%, transparent); }
+  #cm-ed.on { display: block; }
+  #cm-edlabel { font-size: 11.5px; font-weight: 600; color: var(--cm-acc); margin-bottom: 4px; overflow-wrap: anywhere; }
+  #cm-ed textarea { width: 100%; box-sizing: border-box; font: inherit; color: var(--cm-fg); resize: none; display: block; max-height: 9.5em; overflow-y: auto; line-height: 1.4;
+    background: color-mix(in srgb, var(--cm-fg) 8%, var(--cm-bg)); border: 1px solid var(--cm-line); border-radius: 6px; padding: 5px 7px; }
+  #cm-ed textarea:focus { outline: 2px solid var(--cm-acc); outline-offset: -1px; }
+  .cm-edbtns { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .cm-hint { margin-left: auto; font-size: 11px; color: var(--cm-dim); }
+
+  /* comment mode + markers */
+  body.cm-on, body.cm-on .cm-hover { cursor: crosshair !important; }
+  body.cm-on .cm-hover { outline: 2px dashed var(--cm-acc) !important; outline-offset: 3px; }
+  .cm-badge { font-style: normal; font-size: 10px; line-height: 1; margin-left: 3px; vertical-align: super; pointer-events: none; }
+  .cm-badge::before { content: "💬"; }
+  .node > .cm-badge { position: absolute; top: -7px; right: -7px; margin: 0; vertical-align: baseline; font-size: 13px; z-index: 2; }
+  .pop .cm-link { display: block; margin-top: 7px; font-size: 12px; color: inherit; opacity: .8; text-decoration: underline; cursor: pointer; }
+  .pop .cm-link:hover { opacity: 1; }
+  @media (max-width: 560px) { #cm-mode span { display: none; } }
+</style>
 </head>
 <body>
 <div class="page">
@@ -110,7 +183,7 @@
     <div class="arr" id="a-start"></div>
 
     <div class="row">
-      <div class="node dec" id="n-check" style="--c: var(--opus)"><span class="t">Пакет короче самой работы?</span></div>
+      <div class="node dec" id="n-check" style="--c: var(--opus)"><span class="t">Проще описать, чем сделать?</span></div>
       <div class="harr" id="a-self"></div>
       <div class="side"><div class="node box" id="n-self" style="--c: var(--opus)"><span class="who">Opus</span><span class="t">Делает сам</span></div></div>
     </div>
@@ -251,7 +324,7 @@ const P = {
   start: () => ({ c: 'opus', route: 'ты → Opus', title: 'Задача приходит в главную сессию',
     code: 'В каталоге товары перестали группироваться по категориям,\nи вылезли пустые категории. Почини.',
     notes: ['Opus планирует: читает ровно столько, сколько нужно для плана, и решает, кто будет исполнять.'] }),
-  check: () => ({ c: 'opus', route: 'Opus думает', title: 'Пакет короче самой работы?',
+  check: () => ({ c: 'opus', route: 'Opus думает', title: 'Проще описать, чем сделать?',
     code: 'Пакет:  ~10 строк (что, где, как проверить)\nРабота: найти catalog_view, понять модель, править,\n        гонять pytest, чинить, снова гонять…',
     notes: ['<b>Да</b>: описать дешевле, чем сделать, поэтому исполнение уходит в pi на подписку Go.',
       '<b>Нет</b>, когда пакет вышел бы не короче правки. Например, текст уже согласован в чате и его надо просто вставить.'] }),
@@ -367,7 +440,7 @@ const pop = document.getElementById('pop');
 document.addEventListener('click', e => {
   const k = e.target.closest('[data-k]');
   if (!k) { pop.classList.remove('on'); return; }
-  pop.innerHTML = `<b>${k.dataset.k}</b>${KEYS[k.dataset.k]}`;
+  pop.innerHTML = `<b>${k.dataset.k}</b>${KEYS[k.dataset.k]}<a class="cm-link">💬 Комментировать</a>`;
   pop.classList.add('on');
   const r = k.getBoundingClientRect(), w = Math.min(340, innerWidth - 24);
   pop.style.left = Math.max(12, Math.min(r.left, innerWidth - w - 12)) + 'px';
@@ -418,6 +491,214 @@ function replan() { s.ver = 2; s.item = 1; s.calls = 0; s.blocked = false; s.log
 function fixLoop() { s.item = 1; s.calls = 0; s.blocked = false; s.log = []; s.fellBack = false; s.model = 'deepseek-v4.1-flash'; go('packet'); }
 
 go('start');
+</script>
+<script id="cm-script">
+// ===== Comments to chat: paste this script (and the style above) into any explainer page =====
+// Needs --js in agterm. Outside agterm the message is shown for copying.
+// Host page contract: a key popover (#pop) may contain <a class="cm-link"> to comment the key that opened it.
+(() => {
+  const CM = {
+    sel: '.node, [data-k], .ptitle, #p-code, .notes li, button',          // commentable elements
+    ctx: () => (document.getElementById('p-title') || {}).textContent || '', // current step name
+    alias: [['.ptitle', c => `заголовок шага «${c}»`], ['#p-code', c => `код шага «${c}»`]],
+    watch: '#panel',                                                       // re-mark badges when this re-renders
+    pane: 'left',
+  };
+
+  const clean = s => String(s).replace(/\s*[\r\n]+\s*/g, ' / ').trim();
+  const trim = (s, n = 60) => { s = String(s).replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // One line + one trailing "\n": session.type sends Return for each newline, and Returns inside a payload are not spaced.
+  function buildMessage(title, rev, list) {
+    return `Комментарии к странице «${clean(title)}» (rev ${clean(rev)}): ` +
+      list.map((c, i) => `${i + 1}) [${clean(c.label)}] ${clean(c.text)}`).join('; ') + '\n';
+  }
+
+  // <meta name="explainer-rev" content="N">: the agent bumps it on every rewrite of the page.
+  const rev = ((document.querySelector('meta[name="explainer-rev"]') || {}).content || '1').trim();
+  const storeKey = 'agterm-comments:' + document.title;
+  let list = [], sent = [];   // list = pending, sent = history of what went to the chat
+  try {
+    const v = JSON.parse(localStorage.getItem(storeKey));
+    const p = Array.isArray(v) ? v : (v && v.pending);     // old format: plain array of pending
+    if (Array.isArray(p)) list = p.filter(c => c && c.id && c.text).map(c => ({ rev: rev, ...c }));
+    if (v && Array.isArray(v.sent)) sent = v.sent.filter(c => c && c.text);
+  } catch (e) {}
+  const persist = () => { try { localStorage.setItem(storeKey, JSON.stringify({ rev, pending: list, sent })); } catch (e) {} };
+
+  function describe(el) {
+    const ctx = CM.ctx().trim();
+    if (el.matches('[data-k]')) return { id: `key|${ctx}|${el.dataset.k}`, label: ctx ? `${el.dataset.k} (шаг «${ctx}»)` : el.dataset.k };
+    if (el.classList.contains('node')) {
+      const q = c => ((el.querySelector(c) || {}).textContent || '').trim();
+      return { id: 'node|' + (el.id || trim(el.textContent)), label: [q('.who').toUpperCase(), q('.t')].filter(Boolean).join(' · ') || trim(el.textContent) };
+    }
+    const a = CM.alias.find(x => el.matches(x[0]));
+    if (a) return { id: `${a[0]}|${ctx}`, label: a[1](ctx) };
+    const t = trim(el.textContent);
+    return { id: `${el.tagName}|${ctx}|${t}`, label: t };
+  }
+  const own = el => el.closest('#cm-root');
+  const target = e => { const t = e.target.closest ? e.target.closest(CM.sel) : null; return t && !own(t) ? t : null; };
+
+  // ---- UI ----
+  const root = document.createElement('div');
+  root.id = 'cm-root';
+  root.innerHTML = `
+    <div id="cm-bar">
+      <button id="cm-toggle" title="Комментарии">💬<span id="cm-count">0</span></button>
+      <button id="cm-mode" aria-pressed="false" title="Режим комментирования">✎ <span>Комментировать</span></button>
+    </div>
+    <div id="cm-drawer">
+      <div id="cm-items"></div>
+      <div class="cm-foot"><button id="cm-send" class="pri">Отправить в чат</button><button id="cm-clear">Очистить</button></div>
+      <div id="cm-status"></div>
+      <textarea id="cm-fallback" readonly rows="5" hidden></textarea>
+      <div id="cm-hist"></div>
+    </div>
+    <div id="cm-ed">
+      <div id="cm-edlabel"></div>
+      <textarea rows="2" placeholder="Комментарий"></textarea>
+      <div class="cm-edbtns"><button id="cm-save" class="pri">Сохранить</button><button id="cm-cancel">Отмена</button>
+        <span class="cm-hint">Enter · Esc · ⇧Enter</span></div>
+    </div>`;
+  document.body.appendChild(root);
+  const $ = id => document.getElementById(id);
+  const drawer = $('cm-drawer'), ed = $('cm-ed'), edText = ed.querySelector('textarea'), status = $('cm-status'), fb = $('cm-fallback');
+
+  function setStatus(msg, err) { status.textContent = msg || ''; status.className = err ? 'err' : ''; }
+  function render() {
+    $('cm-count').textContent = list.length;
+    $('cm-count').classList.toggle('has', list.length > 0);
+    $('cm-send').disabled = list.length === 0;
+    $('cm-items').innerHTML = list.length
+      ? list.map((c, i) => `<div class="cm-item"><div class="cm-main" data-i="${i}" title="${esc(c.label)}">
+          <div class="cm-lab">${esc(c.label)}${c.rev !== rev ? '<span class="cm-old">к прошлой версии</span>' : ''}</div>
+          <div class="cm-txt">${esc(c.text)}</div></div><button class="cm-x" data-del="${i}" title="Удалить">✕</button></div>`).join('')
+      : '<div class="cm-empty">Пока пусто. Включи «✎ Комментировать» и нажми на элемент.</div>';
+    // history: newest first; everything from older revisions sits under one separator
+    const hist = sent.slice().reverse();
+    const cur = hist.filter(c => c.rev === rev), old = hist.filter(c => c.rev !== rev);
+    const row = c => `<div class="cm-item cm-sent"><div class="cm-main" title="${esc(c.label)}"><div class="cm-lab">${esc(c.label)}</div><div class="cm-txt">${esc(c.text)}</div></div></div>`;
+    $('cm-hist').innerHTML = hist.length
+      ? `<div class="cm-histhead"><span>Отправлено</span><button class="sm" id="cm-clearhist">Очистить историю</button></div>` +
+        cur.map(row).join('') + (old.length ? `<div class="cm-sep">— страница переработана (rev ${esc(rev)}) —</div>` + old.map(row).join('') : '')
+      : '';
+    const ch = $('cm-clearhist'); if (ch) ch.onclick = () => { sent = []; persist(); render(); };
+    mark();
+  }
+
+  // ---- badges on commented elements ----
+  const obs = new MutationObserver(() => mark());
+  const watched = () => document.querySelector(CM.watch);
+  function mark() {
+    obs.disconnect();
+    document.querySelectorAll('.cm-badge').forEach(b => b.remove());
+    const ids = new Set(list.filter(c => c.rev === rev).map(c => c.id));
+    document.querySelectorAll(CM.sel).forEach(el => {
+      if (own(el) || !ids.has(describe(el).id)) return;
+      const b = document.createElement('i'); b.className = 'cm-badge'; el.appendChild(b);
+    });
+    if (watched()) obs.observe(watched(), { childList: true, subtree: true });
+  }
+
+  // ---- editor ----
+  const grow = () => { edText.style.height = 'auto'; edText.style.height = edText.scrollHeight + 'px'; };   // CSS max-height caps it at ~6 lines
+  let editing = null;   // { id, label, idx }
+  function openEditor(d, rect) {
+    const idx = list.findIndex(c => c.id === d.id);
+    editing = { id: d.id, label: d.label, idx };
+    $('cm-edlabel').textContent = d.label;
+    edText.value = idx >= 0 ? list[idx].text : '';
+    ed.classList.add('on');
+    grow();
+    const h = ed.offsetHeight, w = ed.offsetWidth;
+    let top = rect.bottom + 6;
+    if (top + h > innerHeight - 8) top = rect.top - h - 6;
+    ed.style.top = Math.max(8, Math.min(top, innerHeight - h - 8)) + 'px';
+    ed.style.left = Math.max(8, Math.min(rect.left, innerWidth - w - 8)) + 'px';
+    edText.focus();
+  }
+  function closeEditor() { ed.classList.remove('on'); editing = null; }
+  function saveEditor() {
+    const text = edText.value.trim();
+    if (editing && text) {
+      if (editing.idx >= 0) list[editing.idx].text = text; else list.push({ id: editing.id, label: editing.label, text, rev });
+    } else if (editing && editing.idx >= 0) list.splice(editing.idx, 1);
+    closeEditor(); persist(); render();
+  }
+  $('cm-save').onclick = saveEditor;
+  $('cm-cancel').onclick = closeEditor;
+  edText.addEventListener('input', grow);
+  edText.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); saveEditor(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeEditor(); }
+  });
+
+  // ---- drawer ----
+  const setDrawer = on => { drawer.classList.toggle('on', on); if (on) setStatus(''); };
+  $('cm-toggle').onclick = () => setDrawer(!drawer.classList.contains('on'));
+  $('cm-items').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (del) { list.splice(+del.dataset.del, 1); persist(); render(); return; }
+    const main = e.target.closest('[data-i]');
+    if (main) openEditor(list[+main.dataset.i], main.getBoundingClientRect());
+  });
+  $('cm-clear').onclick = () => { list = []; fb.hidden = true; persist(); render(); setStatus(''); };
+  $('cm-send').onclick = async () => {
+    const line = buildMessage(document.title, rev, list);
+    if (typeof agterm === 'undefined') {
+      fb.hidden = false; fb.value = line.trimEnd(); fb.select();
+      setStatus('Вне agterm: скопируй текст и вставь в чат.'); return;
+    }
+    try {
+      await agterm.request('session.type', { args: { text: line, pane: CM.pane } });
+      sent.push(...list.map(c => ({ rev: c.rev, label: c.label, text: c.text }))); sent = sent.slice(-50);
+      list = []; persist(); render(); setStatus('Отправлено в чат');
+      setTimeout(() => { if (status.textContent === 'Отправлено в чат') setStatus(''); }, 2500);
+    } catch (err) {
+      setStatus('Не отправлено: ' + ((err && err.message) || err), true);
+    }
+  };
+
+  // ---- comment mode ----
+  let hover = null;
+  const setMode = on => {
+    $('cm-mode').setAttribute('aria-pressed', on);
+    document.body.classList.toggle('cm-on', on);
+    if (!on && hover) { hover.classList.remove('cm-hover'); hover = null; }
+  };
+  $('cm-mode').onclick = () => setMode($('cm-mode').getAttribute('aria-pressed') !== 'true');
+  document.addEventListener('mouseover', e => {
+    if (!document.body.classList.contains('cm-on')) return;
+    const t = target(e);
+    if (t === hover) return;
+    if (hover) hover.classList.remove('cm-hover');
+    hover = t; if (t) t.classList.add('cm-hover');
+  });
+  let lastKey = null;
+  document.addEventListener('click', e => {
+    const k = e.target.closest && e.target.closest('[data-k]'); if (k) lastKey = k;
+    if (!document.body.classList.contains('cm-on')) return;
+    if (own(e.target) || (e.target.closest && e.target.closest('.pop'))) return;
+    const t = target(e); if (!t) return;
+    e.preventDefault(); e.stopPropagation();
+    openEditor(describe(t), t.getBoundingClientRect());
+  }, true);
+  // "💬 Комментировать" link inside the key popover
+  const pop = document.getElementById('pop');
+  if (pop) pop.addEventListener('click', e => {
+    if (!e.target.closest('.cm-link') || !lastKey) return;
+    e.preventDefault(); e.stopPropagation();
+    pop.classList.remove('on');
+    openEditor(describe(lastKey), lastKey.getBoundingClientRect());
+  });
+
+  window.CommentLayer = { buildMessage, setMode, setDrawer, comment: el => openEditor(describe(el), el.getBoundingClientRect()) };
+  persist();   // remember which revision this browser has seen
+  render();
+})();
 </script>
 </body>
 </html>

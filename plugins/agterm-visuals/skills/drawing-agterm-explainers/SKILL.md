@@ -50,6 +50,14 @@ When the process has decisions, make it an **interactive walkthrough** (`--js`):
 | Stack side branches under 640px; page `padding-bottom` ≥ panel height | The right pane is narrow; the panel must not hide the last node |
 | Static pages need no JS; interactive ones need `--js` | JS is off in agterm overlays by default |
 
+## Comments to chat
+
+An interactive page can let the user comment on any element and send the notes to the chat. The layer (one `<style id="cm-style">` + one `<script id="cm-script">`, plus the `.cm-link` in the key popover) lives in `examples/interactive-walkthrough.html`: copy both blocks.
+
+- Needs `--js`: it calls `agterm.request('session.type', {args: {text, pane: 'left'}})`. Outside agterm it shows the text to copy.
+- `session.type` sends Return per newline and does not space Returns inside a payload, so the message must be ONE line plus a single trailing `\n`.
+- Put `<meta name="explainer-rev" content="N">` in the head and bump it on every rewrite: sent comments stay as history, and leftovers from an older rev are tagged.
+
 ## Before saying it's done
 
 1. `node --check` on the extracted `<script>`.
