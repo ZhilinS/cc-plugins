@@ -1,0 +1,9 @@
+{
+  "name": "style",
+  "version": "0.1.0",
+  "description": "A classifier grades every prompt and tells Claude how long and in what mode to answer; liked and disliked answers become few-shot examples. Backends: claude -p, opencode, pi, Jev.",
+  "author": {
+    "name": "Sergei Zhilin",
+    "email": "zhilin.job@gmail.com"
+  }
+}

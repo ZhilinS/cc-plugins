@@ -16,6 +16,7 @@ Pull later changes with `/plugin marketplace update zhilin-cc-plugins`, then `/p
 | Plugin | What it does |
 |---|---|
 | [delegate-to-pi](plugins/delegate-to-pi) | Claude plans, a Haiku subagent drives the pi CLI on opencode-go models; learns rules from each run, applied after your approval |
+| [style](plugins/style) | A classifier grades every prompt and tells Claude how to answer it; liked and disliked answers become few-shot examples. Backends: claude -p, opencode, pi, Jev |
 | [agterm-visuals](plugins/agterm-visuals) | Diagrams and interactive walkthroughs as HTML pages in agterm's right pane, with comments sent back to the chat |
 
 Each plugin's README covers setup, requirements and where it keeps its data.

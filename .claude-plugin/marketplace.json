@@ -18,6 +18,12 @@
       "description": "Plan in Claude, execute in pi on opencode-go models, learn from each run",
       "source": "./plugins/delegate-to-pi",
       "category": "development"
+    },
+    {
+      "name": "style",
+      "description": "A classifier grades every prompt and steers the answer's mode and length; backends: claude -p, opencode, pi, Jev",
+      "source": "./plugins/style",
+      "category": "productivity"
     }
   ]
 }
