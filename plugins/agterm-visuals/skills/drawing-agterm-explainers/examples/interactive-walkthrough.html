@@ -671,7 +671,7 @@ go('start');
     const del = e.target.closest('[data-del]');
     if (del) { list.splice(+del.dataset.del, 1); persist(); render(); return; }
     const main = e.target.closest('[data-i]');
-    if (main) openEditor(list[+main.dataset.i], main.getBoundingClientRect());
+    if (main) { clearSel(); openEditor(list[+main.dataset.i], main.getBoundingClientRect()); }
   });
   $('cm-clear').onclick = () => { list = []; fb.hidden = true; persist(); render(); setStatus(''); };
   $('cm-send').onclick = async () => {
@@ -714,9 +714,10 @@ go('start');
     if (dragged) { dragged = false; e.preventDefault(); e.stopPropagation(); return; }   // the click that ends a band drag
     const t = target(e); if (!t) return;
     e.preventDefault(); e.stopPropagation();
-    if (e.shiftKey && sel.size) { if (sel.has(t)) { sel.delete(t); t.classList.remove('cm-sel'); } else sel.add(t); openGroup(); return; }
-    clearSel();
-    openEditor(describe(t), t.getBoundingClientRect());
+    // shift always adds to (or removes from) the current selection; a plain click starts a new one
+    if (e.shiftKey && sel.has(t)) { sel.delete(t); t.classList.remove('cm-sel'); }
+    else { if (!e.shiftKey) clearSel(); sel.add(t); }
+    openGroup(e.shiftKey);
   }, true);
 
   // ---- rubber band: drag selects every commentable element the band touches; shift adds to the selection ----
@@ -735,14 +736,15 @@ go('start');
     return { top: Math.min(...bs.map(b => b.top)), bottom: Math.max(...bs.map(b => b.bottom)), left: Math.min(...bs.map(b => b.left)) };
   }
   // one editor for the whole selection: members in document order, id from the sorted member ids
-  function openGroup() {
-    const els = [...sel].sort((a, b) => a.compareDocumentPosition(b) & 2 ? 1 : -1);
+  function openGroup(keepText) {
+    const els = outermost([...sel]).sort((a, b) => a.compareDocumentPosition(b) & 2 ? 1 : -1);
+    [...sel].filter(el => !els.includes(el)).forEach(el => { sel.delete(el); el.classList.remove('cm-sel'); });
     els.forEach(el => el.classList.add('cm-sel'));
     if (!els.length) { closeEditor(); return; }
-    if (els.length === 1) { openEditor(describe(els[0]), els[0].getBoundingClientRect()); return; }
+    const keep = keepText && editing ? edText.value : '';   // shift-add keeps what was typed
+    if (els.length === 1) { openEditor(describe(els[0]), els[0].getBoundingClientRect()); if (keep && !edText.value) edText.value = keep; return; }
     const ds = els.map(describe), ids = ds.map(d => d.id);
-    const keep = editing && editing.ids ? edText.value : '';
-    openEditor({ id: 'group|' + ids.slice().sort().join('|'), label: ds.map(d => d.label).join(' + '), ids }, union(els));
+    openEditor({ id: 'group|' + JSON.stringify(ids.slice().sort()), label: ds.map(d => d.label).join(' + '), ids }, union(els));
     if (keep && !edText.value) edText.value = keep;
   }
   const rect = (a, b) => ({ left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) });
@@ -769,7 +771,7 @@ go('start');
     const found = hits(rect(d, { x: e.clientX, y: e.clientY }));
     if (!d.add) { closeEditor(); clearSel(); }
     found.forEach(el => sel.add(el));
-    openGroup();
+    openGroup(d.add);
   });
   // "💬 Комментировать" link inside the key popover
   const pop = document.getElementById('pop');
@@ -777,10 +779,11 @@ go('start');
     if (!e.target.closest('.cm-link') || !lastKey) return;
     e.preventDefault(); e.stopPropagation();
     pop.classList.remove('on');
+    clearSel();
     openEditor(describe(lastKey), lastKey.getBoundingClientRect());
   });
 
-  window.CommentLayer = { buildMessage, setMode, setDrawer, comment: el => openEditor(describe(el), el.getBoundingClientRect()) };
+  window.CommentLayer = { buildMessage, setMode, setDrawer, comment: el => { clearSel(); openEditor(describe(el), el.getBoundingClientRect()); } };
   persist();   // remember which revision this browser has seen
   render();
 })();
