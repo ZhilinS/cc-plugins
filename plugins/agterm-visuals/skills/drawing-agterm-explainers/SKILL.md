@@ -50,7 +50,8 @@ When the process has decisions, make it an **interactive walkthrough**:
 | Declare your own aliases (`--bg`, `--opus`…) on `body`, not on an inner wrapper | A fixed panel or popover outside the wrapper loses them and renders transparent |
 | Opaque surfaces: `background: linear-gradient(var(--bg), var(--bg)), Canvas` | The agterm background can be translucent |
 | Diamond/parallelogram via two `clip-path` layers (`::before` border color, `::after` inset background) | Real shapes with text inside, no SVG layout math |
-| Stack side branches under 640px; page `padding-bottom` ≥ panel height | The right pane is narrow; the panel must not hide the last node |
+| A decision row is a `1fr auto 1fr` grid: the diamond in the middle column, the side arrow and node in the right one | A centered flex row centers diamond + branch together and pushes the diamond off the arrows' axis |
+| Under 640px the side node drops under the diamond, right-aligned with `↳`; page `padding-bottom` ≥ panel height | The right pane is narrow; the panel must not hide the last node |
 | Always open with `--js` | JS is off in agterm overlays by default; the comments layer and any walkthrough need it |
 
 ## Comments to chat

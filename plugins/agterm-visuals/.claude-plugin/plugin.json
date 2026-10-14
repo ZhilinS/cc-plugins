@@ -1,6 +1,6 @@
 {
   "name": "agterm-visuals",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Diagrams and interactive walkthroughs as HTML pages in agterm's right split pane.",
   "author": {
     "name": "Sergei Zhilin",

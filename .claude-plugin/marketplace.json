@@ -1,7 +1,7 @@
 {
   "name": "zhilin-cc-plugins",
   "description": "A curated marketplace for Claude Code plugins, skills, and extensions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "owner": {
     "name": "Sergey Zhilin",
     "email": "zhilin.job@gmail.com"
