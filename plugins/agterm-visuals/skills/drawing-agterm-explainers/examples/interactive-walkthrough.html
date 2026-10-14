@@ -16,6 +16,7 @@
     --line: color-mix(in srgb, var(--fg) 40%, transparent);
   }
   .page { max-width: 760px; margin: 0 auto; padding: 18px 16px 52vh; }
+  body.pmin .page { padding-bottom: 96px; }
   h1 { font-size: 19px; margin: 0 0 2px; }
   .sub { color: var(--dim); margin: 0 0 10px; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--dim); }
@@ -74,8 +75,16 @@
     background: linear-gradient(var(--bg), var(--bg)), Canvas; border-top: 2px solid var(--pc, var(--line));
     box-shadow: 0 -8px 24px color-mix(in srgb, #000 25%, transparent); }
   .pin { max-width: 760px; margin: 0 auto; padding: 10px 16px 16px; }
+  .phead { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none; }
+  .phead > div { flex: 1; min-width: 0; }
   .route { font-size: 11.5px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--pc); }
   .ptitle { font-weight: 600; font-size: 15px; margin: 2px 0 6px; }
+  #p-toggle { flex: none; padding: 1px 9px; font-size: 12px; line-height: 1.5; margin-top: 1px; }
+  /* collapsed panel: header only; the page padding follows it (body.pmin above) */
+  body.pmin .panel { max-height: none; overflow: hidden; }
+  body.pmin .pin { padding-bottom: 10px; }
+  body.pmin .ptitle { margin-bottom: 0; }
+  body.pmin #p-code, body.pmin #p-hint, body.pmin #p-notes { display: none; }
   pre { margin: 0 0 8px; padding: 10px 12px; border-radius: 8px; background: var(--card); overflow-x: auto;
     font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; }
   pre .k { color: var(--opus); font-weight: 700; }
@@ -158,6 +167,12 @@
   /* comment mode + markers */
   body.cm-on, body.cm-on .cm-hover { cursor: crosshair !important; }
   body.cm-on .cm-hover { outline: 2px dashed var(--cm-acc) !important; outline-offset: 3px; }
+  body.cm-on { user-select: none; -webkit-user-select: none; }
+  body.cm-on #cm-root, body.cm-on #cm-ed { user-select: text; -webkit-user-select: text; }
+  .cm-sel { outline: 2px solid var(--cm-acc) !important; outline-offset: 3px; }
+  #cm-band { position: fixed; display: none; z-index: 29; pointer-events: none; border: 1.5px dashed var(--cm-acc);
+    background: color-mix(in srgb, var(--cm-acc) 12%, transparent); }
+  #cm-band.on { display: block; }
   .cm-badge { font-style: normal; font-size: 10px; line-height: 1; margin-left: 3px; vertical-align: super; pointer-events: none; }
   .cm-badge::before { content: "💬"; }
   .node > .cm-badge { position: absolute; top: -7px; right: -7px; margin: 0; vertical-align: baseline; font-size: 13px; z-index: 2; }
@@ -277,8 +292,10 @@
 
 <div class="pop" id="pop"></div>
 <div class="panel" id="panel"><div class="pin">
-  <div class="route" id="p-route"></div>
-  <div class="ptitle" id="p-title"></div>
+  <div class="phead" id="p-head"><div>
+    <div class="route" id="p-route"></div>
+    <div class="ptitle" id="p-title"></div>
+  </div><button class="ghost" id="p-toggle" title="Свернуть панель">▾</button></div>
   <pre id="p-code"></pre>
   <div class="hintk" id="p-hint" style="font-size:11.5px;color:var(--dim);margin:-4px 0 6px">Нажми на подчёркнутый ключ: покажется, что он значит.</div>
   <ul class="notes" id="p-notes"></ul>
@@ -449,6 +466,17 @@ document.addEventListener('click', e => {
 });
 document.getElementById('panel').addEventListener('scroll', () => pop.classList.remove('on'));
 
+// collapsed panel: header only, remembered per page; go() never reopens it
+const pminKey = 'agterm-panel-min:' + document.title;
+function setPanelMin(min) {
+  document.body.classList.toggle('pmin', min);
+  const b = document.getElementById('p-toggle');
+  b.textContent = min ? '▴' : '▾'; b.title = min ? 'Развернуть панель' : 'Свернуть панель';
+  try { localStorage.setItem(pminKey, min ? '1' : ''); } catch (e) {}
+}
+document.getElementById('p-head').addEventListener('click', () => { pop.classList.remove('on'); setPanelMin(!document.body.classList.contains('pmin')); });
+try { setPanelMin(localStorage.getItem(pminKey) === '1'); } catch (e) {}
+
 let cur = 'start';
 function go(id) {
   if (id === 'start') s = { item: 1, calls: 0, total: 0, model: 'deepseek-v4.1-flash', fellBack: false, blocked: false, ver: 1, fix: false, log: [] }, seen.clear();
@@ -576,7 +604,7 @@ go('start');
       ? list.map((c, i) => `<div class="cm-item"><div class="cm-main" data-i="${i}" title="${esc(c.label)}">
           <div class="cm-lab">${esc(c.label)}${c.rev !== rev ? '<span class="cm-old">к прошлой версии</span>' : ''}</div>
           <div class="cm-txt">${esc(c.text)}</div></div><button class="cm-x" data-del="${i}" title="Удалить">✕</button></div>`).join('')
-      : '<div class="cm-empty">Пока пусто. Включи «✎ Комментировать» и нажми на элемент.</div>';
+      : '<div class="cm-empty">Пока пусто. Включи «✎ Комментировать», нажми на элемент или обведи несколько рамкой; ⇧ добавляет к выделению.</div>';
     // history: newest first; everything from older revisions sits under one separator
     const hist = sent.slice().reverse();
     const cur = hist.filter(c => c.rev === rev), old = hist.filter(c => c.rev !== rev);
@@ -595,7 +623,7 @@ go('start');
   function mark() {
     obs.disconnect();
     document.querySelectorAll('.cm-badge').forEach(b => b.remove());
-    const ids = new Set(list.filter(c => c.rev === rev).map(c => c.id));
+    const ids = new Set(list.filter(c => c.rev === rev).flatMap(c => c.ids || [c.id]));
     document.querySelectorAll(CM.sel).forEach(el => {
       if (own(el) || !ids.has(describe(el).id)) return;
       const b = document.createElement('i'); b.className = 'cm-badge'; el.appendChild(b);
@@ -605,10 +633,10 @@ go('start');
 
   // ---- editor ----
   const grow = () => { edText.style.height = 'auto'; edText.style.height = edText.scrollHeight + 'px'; };   // CSS max-height caps it at ~6 lines
-  let editing = null;   // { id, label, idx }
+  let editing = null;   // { id, label, ids, idx }
   function openEditor(d, rect) {
     const idx = list.findIndex(c => c.id === d.id);
-    editing = { id: d.id, label: d.label, idx };
+    editing = { id: d.id, label: d.label, ids: d.ids, idx };
     $('cm-edlabel').textContent = d.label;
     edText.value = idx >= 0 ? list[idx].text : '';
     ed.classList.add('on');
@@ -624,16 +652,16 @@ go('start');
   function saveEditor() {
     const text = edText.value.trim();
     if (editing && text) {
-      if (editing.idx >= 0) list[editing.idx].text = text; else list.push({ id: editing.id, label: editing.label, text, rev });
+      if (editing.idx >= 0) list[editing.idx].text = text; else list.push({ id: editing.id, label: editing.label, ids: editing.ids, text, rev });
     } else if (editing && editing.idx >= 0) list.splice(editing.idx, 1);
-    closeEditor(); persist(); render();
+    closeEditor(); clearSel(); persist(); render();
   }
   $('cm-save').onclick = saveEditor;
-  $('cm-cancel').onclick = closeEditor;
+  $('cm-cancel').onclick = () => { closeEditor(); clearSel(); };
   edText.addEventListener('input', grow);
   edText.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); saveEditor(); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeEditor(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeEditor(); clearSel(); }
   });
 
   // ---- drawer ----
@@ -668,6 +696,7 @@ go('start');
     $('cm-mode').setAttribute('aria-pressed', on);
     document.body.classList.toggle('cm-on', on);
     if (!on && hover) { hover.classList.remove('cm-hover'); hover = null; }
+    if (!on) { closeEditor(); clearSel(); }
   };
   $('cm-mode').onclick = () => setMode($('cm-mode').getAttribute('aria-pressed') !== 'true');
   document.addEventListener('mouseover', e => {
@@ -682,10 +711,66 @@ go('start');
     const k = e.target.closest && e.target.closest('[data-k]'); if (k) lastKey = k;
     if (!document.body.classList.contains('cm-on')) return;
     if (own(e.target) || (e.target.closest && e.target.closest('.pop'))) return;
+    if (dragged) { dragged = false; e.preventDefault(); e.stopPropagation(); return; }   // the click that ends a band drag
     const t = target(e); if (!t) return;
     e.preventDefault(); e.stopPropagation();
+    if (e.shiftKey && sel.size) { if (sel.has(t)) { sel.delete(t); t.classList.remove('cm-sel'); } else sel.add(t); openGroup(); return; }
+    clearSel();
     openEditor(describe(t), t.getBoundingClientRect());
   }, true);
+
+  // ---- rubber band: drag selects every commentable element the band touches; shift adds to the selection ----
+  const band = document.createElement('div'); band.id = 'cm-band'; document.body.appendChild(band);
+  const sel = new Set();
+  let dragged = false, drag = null;   // drag = { x, y, add }
+  function clearSel() { document.querySelectorAll('.cm-sel').forEach(el => el.classList.remove('cm-sel')); sel.clear(); }
+  function outermost(els) { return els.filter(el => !els.some(o => o !== el && o.contains(el))); }
+  function hits(r) {
+    const all = [...document.querySelectorAll(CM.sel)].filter(el => !own(el));
+    return outermost(all.filter(el => { const b = el.getBoundingClientRect();
+      return b.width && b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top; }));
+  }
+  function union(els) {
+    const bs = els.map(el => el.getBoundingClientRect());
+    return { top: Math.min(...bs.map(b => b.top)), bottom: Math.max(...bs.map(b => b.bottom)), left: Math.min(...bs.map(b => b.left)) };
+  }
+  // one editor for the whole selection: members in document order, id from the sorted member ids
+  function openGroup() {
+    const els = [...sel].sort((a, b) => a.compareDocumentPosition(b) & 2 ? 1 : -1);
+    els.forEach(el => el.classList.add('cm-sel'));
+    if (!els.length) { closeEditor(); return; }
+    if (els.length === 1) { openEditor(describe(els[0]), els[0].getBoundingClientRect()); return; }
+    const ds = els.map(describe), ids = ds.map(d => d.id);
+    const keep = editing && editing.ids ? edText.value : '';
+    openEditor({ id: 'group|' + ids.slice().sort().join('|'), label: ds.map(d => d.label).join(' + '), ids }, union(els));
+    if (keep && !edText.value) edText.value = keep;
+  }
+  const rect = (a, b) => ({ left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) });
+  document.addEventListener('mousedown', e => {
+    if (!document.body.classList.contains('cm-on') || e.button !== 0) return;
+    if (own(e.target) || e.target.closest('#cm-ed') || e.target.closest('.pop')) return;
+    dragged = false;
+    drag = { x: e.clientX, y: e.clientY, add: e.shiftKey };
+    e.preventDefault();   // no native text selection while dragging
+  });
+  document.addEventListener('mousemove', e => {
+    if (!drag) return;
+    const r = rect(drag, { x: e.clientX, y: e.clientY });
+    if (!band.classList.contains('on') && Math.hypot(r.right - r.left, r.bottom - r.top) < 4) return;
+    band.classList.add('on');
+    Object.assign(band.style, { left: r.left + 'px', top: r.top + 'px', width: (r.right - r.left) + 'px', height: (r.bottom - r.top) + 'px' });
+  });
+  document.addEventListener('mouseup', e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (!band.classList.contains('on')) return;   // a plain click: the click handler takes it
+    band.classList.remove('on');
+    dragged = true;
+    const found = hits(rect(d, { x: e.clientX, y: e.clientY }));
+    if (!d.add) { closeEditor(); clearSel(); }
+    found.forEach(el => sel.add(el));
+    openGroup();
+  });
   // "💬 Комментировать" link inside the key popover
   const pop = document.getElementById('pop');
   if (pop) pop.addEventListener('click', e => {

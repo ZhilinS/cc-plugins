@@ -16,24 +16,27 @@ Before drawing, read `~/.claude/agterm-visuals/feedback.md` if it exists: it hol
 ```bash
 S=(--target "$AGTERM_SESSION_ID" --socket "$AGTERM_SOCKET")
 agtermctl session split on --axis vertical "${S[@]}"            # skip if tree shows split: true
-agtermctl session overlay open --html "$F" --pane right "${S[@]}"   # add --js for interactive pages
+agtermctl session overlay open --html "$F" --js --pane right "${S[@]}"   # always --js: every page carries script
 agtermctl session focus left "${S[@]}"                           # keep typing in the chat
 agtermctl session overlay reload --pane right "${S[@]}"          # after every rewrite
 ```
 
 Not a full-session overlay: it covers the chat. The page lives in the scratchpad.
 
+Every page is dynamic: it opens with `--js` and carries the comments layer (below). There is no static variant — the layer costs nothing, and a page without it cannot be commented back to the chat.
+
 ## What the page is
 
 1. **Title, one-line subtitle, legend** of who acts (one color per actor).
 2. **Flow, top to bottom.** The main path runs straight down the center. Shapes: pill = start/end, box = action, diamond = decision, parallelogram = data or message. Border color = actor. A side branch leaves a diamond to the right with a short labeled arrow (Нет / BLOCKED / FAILED). A loop back is a tag on the node ("↩ новый пакет"), never a long back edge.
-3. **Short labels only.** Explanation goes behind a click: `<details>` on a static page, the panel below on an interactive one.
+3. **Short labels only.** Explanation goes behind a click: `<details>` on a plain flow, the panel below on a walkthrough.
 4. **Dashed arrows animated** in the flow direction; the arrow into the active step is highlighted. Respect `prefers-reduced-motion`.
 
-When the process has decisions, make it an **interactive walkthrough** (`--js`):
+When the process has decisions, make it an **interactive walkthrough**:
 
 - Buttons sit on the decision nodes themselves (Да / Нет, DONE / BLOCKED), plus "Дальше ↓" on plain steps and "↺ Сначала" at the top.
 - A **sticky bottom panel** shows what actually travels at the current step: route line (`Opus → pi-runner · Agent prompt`), title, the exact payload, 1–3 notes.
+- The panel **collapses to its header** (route + title) on a click on the header or its ▾ button, and expands the same way. The state is remembered per page title in `localStorage` and survives `overlay reload`; a step change never reopens a collapsed panel, and the page's `padding-bottom` shrinks with it (`body.pmin`).
 - Drive it with **one concrete running example** (a real-looking task), not placeholders. Loops change the payload (attempt counter, fallback model, v2 packet).
 - Structured payloads are **vertical key: value blocks**, YAML-like, one key per line. Every key is clickable and opens a popover saying what it means. No legend list of fields under the block.
 
@@ -48,13 +51,13 @@ When the process has decisions, make it an **interactive walkthrough** (`--js`):
 | Opaque surfaces: `background: linear-gradient(var(--bg), var(--bg)), Canvas` | The agterm background can be translucent |
 | Diamond/parallelogram via two `clip-path` layers (`::before` border color, `::after` inset background) | Real shapes with text inside, no SVG layout math |
 | Stack side branches under 640px; page `padding-bottom` ≥ panel height | The right pane is narrow; the panel must not hide the last node |
-| Static pages need no JS; interactive ones need `--js` | JS is off in agterm overlays by default |
+| Always open with `--js` | JS is off in agterm overlays by default; the comments layer and any walkthrough need it |
 
 ## Comments to chat
 
-An interactive page can let the user comment on any element and send the notes to the chat. The layer (one `<style id="cm-style">` + one `<script id="cm-script">`, plus the `.cm-link` in the key popover) lives in `examples/interactive-walkthrough.html`: copy both blocks.
+Every page lets the user comment on any element and send the notes to the chat. The layer (one `<style id="cm-style">` + one `<script id="cm-script">`, plus the `.cm-link` in the key popover) lives in `examples/interactive-walkthrough.html`: copy both blocks into every page, a plain flow too. Set `CM.sel` to the page's commentable selectors (`.node` plus whatever tables or paragraphs the page has).
 
-- Needs `--js`: it calls `agterm.request('session.type', {args: {text, pane: 'left'}})`. Outside agterm it shows the text to copy.
+- It calls `agterm.request('session.type', {args: {text, pane: 'left'}})`. Outside agterm it shows the text to copy.
 - `session.type` sends Return per newline and does not space Returns inside a payload, so the message must be ONE line plus a single trailing `\n`.
 - Put `<meta name="explainer-rev" content="N">` in the head and bump it on every rewrite: sent comments stay as history, and leftovers from an older rev are tagged.
 
