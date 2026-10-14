@@ -741,11 +741,13 @@ go('start');
     [...sel].filter(el => !els.includes(el)).forEach(el => { sel.delete(el); el.classList.remove('cm-sel'); });
     els.forEach(el => el.classList.add('cm-sel'));
     if (!els.length) { closeEditor(); return; }
-    const keep = keepText && editing ? edText.value : '';   // shift-add keeps what was typed
-    if (els.length === 1) { openEditor(describe(els[0]), els[0].getBoundingClientRect()); if (keep && !edText.value) edText.value = keep; return; }
+    // a shift-add carries the draft, but only from an editor this selection opened (not one opened from the drawer)
+    const keep = keepText && editing && editing.fromSel ? edText.value : null;
     const ds = els.map(describe), ids = ds.map(d => d.id);
-    openEditor({ id: 'group|' + JSON.stringify(ids.slice().sort()), label: ds.map(d => d.label).join(' + '), ids }, union(els));
-    if (keep && !edText.value) edText.value = keep;
+    if (els.length === 1) openEditor(ds[0], els[0].getBoundingClientRect());
+    else openEditor({ id: 'group|' + JSON.stringify(ids.slice().sort()), label: ds.map(d => d.label).join(' + '), ids }, union(els));
+    editing.fromSel = true;
+    if (keep !== null) edText.value = keep;
   }
   const rect = (a, b) => ({ left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) });
   document.addEventListener('mousedown', e => {
