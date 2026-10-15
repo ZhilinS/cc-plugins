@@ -38,7 +38,7 @@ Pick one per machine in `~/.claude/settings.json`:
 }
 ```
 
-`STYLE_CLASSIFIER_MODEL` overrides the backend's default model id. `TYPESAFE_API_KEY` is needed only for `jev`. To try a backend by hand:
+`STYLE_CLASSIFIER_MODEL` overrides the backend's default model id. `TYPESAFE_API_KEY` is needed only for `jev`; without it in the environment, the `TYPESAFE_API_KEY=` line of `~/.claude/.env` is used. To try a backend by hand:
 
 ```bash
 echo '{"prompt":"explain how this works","transcript_path":""}' | python3 scripts/classify.py --model opencode

@@ -22,6 +22,7 @@ TIMEOUT_S = 12
 STATE_LIMIT = 6000  # chars per state field; more only costs tokens
 LOG = Path.home() / ".claude/state/style-classifier/log.jsonl"
 LOG_KEEP = 200  # rows; the full JSON of recent calls, enough for a Jev migration sample
+ENV_FILE = Path.home() / ".claude/.env"  # TYPESAFE_API_KEY fallback, shared with jev-feedback
 
 QUESTIONS = {
     "reply_mode": {
@@ -190,11 +191,21 @@ def call_pi(model: str, request: dict) -> str:
                 json.dumps(request, ensure_ascii=False)])
 
 
+def typesafe_key() -> str:
+    """$TYPESAFE_API_KEY, else its line in ~/.claude/.env."""
+    if os.environ.get("TYPESAFE_API_KEY"):
+        return os.environ["TYPESAFE_API_KEY"]
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith("TYPESAFE_API_KEY="):
+            return line.split("=", 1)[1].strip().strip("\"'")
+    raise KeyError("TYPESAFE_API_KEY")
+
+
 def call_jev(model: str, request: dict) -> str:
     req = urllib.request.Request(
         "https://api.typesafe.ai/v1/systemone",
         data=json.dumps({"model": model, **request}, ensure_ascii=False).encode(),
-        headers={"Authorization": f"Bearer {os.environ['TYPESAFE_API_KEY']}",
+        headers={"Authorization": f"Bearer {typesafe_key()}",
                  "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
         return resp.read().decode()
