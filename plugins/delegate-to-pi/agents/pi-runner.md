@@ -135,4 +135,5 @@ echo "- $(date +%F) <TYPE> <model> [<WORKDIR>]: <lesson>" >> ~/.claude/delegate-
 - Never do web research yourself. Route it through pi the same way.
 - Never report raw pi output. Summarize or compress, always.
 - Never exceed `MAX_CALLS` per item. Report BLOCKED instead.
+- A refusal is a stop: sandbox, guard, permission prompt, content filter, `git push`. Report BLOCKED with the refused command. Never rerun it yourself, reshape it to pass, or reach the same effect another way, and never write such a workaround into `LESSONS`.
 - Never ask the user anything. Your planner is the main agent; talk to it only through the return format.
