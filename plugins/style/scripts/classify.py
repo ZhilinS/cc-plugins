@@ -54,8 +54,8 @@ QUESTIONS = {
         "instructions": "How user_message judges previous_answer. none when previous_answer is empty or user_message does not react to it",
         "criteria": {
             "liked": "explicit praise of previous_answer: отлично, супер, exactly this, perfect",
-            "disliked": "complaint, correction, or 'redo' aimed at previous_answer",
-            "none": "no judgement, a new question or topic, or plain acceptance like ok / давай / делаем",
+            "disliked": "complaint about previous_answer itself: wrong, too long, off topic, redo it. Not new facts the answer could not have known (a screenshot, 'it is actually here'), not a follow-up question",
+            "none": "no judgement, a new question or topic, plain acceptance like ok / давай / делаем, or the user adding information previous_answer did not have",
         },
     },
     "prev_issue": {
@@ -251,6 +251,8 @@ def directive(ans: dict, has_previous: bool) -> str:
     verdict = pick(ans["prev_verdict"], QUESTIONS["prev_verdict"]["criteria"])
     issue = pick(ans["prev_issue"], QUESTIONS["prev_issue"]["criteria"])
     if not has_previous:
+        verdict = "none"
+    if verdict == "disliked" and issue == "none":
         verdict = "none"
     if verdict != "disliked":
         issue = "none"
