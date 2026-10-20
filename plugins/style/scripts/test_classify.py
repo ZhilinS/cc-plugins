@@ -40,6 +40,11 @@ class ParseTest(unittest.TestCase):
         self.assertTrue(classify.directive(classify.parse_text(RAW["pi"]), True)
                         .startswith("[style] reply=short, up to 3 lines"))
 
+    def test_dislike_without_an_issue_is_no_dislike(self):
+        answers = json.loads(json.dumps(ANSWERS))
+        answers["prev_verdict"]["choice"] = "disliked"
+        self.assertNotIn("DISLIKED", classify.directive(answers, True))
+
     def test_cli_error_output_classifies_to_nothing(self):
         error = "\x1b[91m\x1b[1mError: \x1b[0mModel not found: opencode-go/x.\n"
         original = classify.BACKENDS["opencode"]

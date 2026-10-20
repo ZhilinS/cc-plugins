@@ -9,7 +9,9 @@ The plugin hook `scripts/classify.py` grades every user message. Two of its verd
 
 ## DISLIKED: `previous answer DISLIKED: <issue> (<confidence>)`
 
-1. Gate first. If the user's message already says what is wrong or supplies the correction, go on.
+1. Gate first. If the user only brings facts the previous answer could not have had (a screenshot,
+   "it is actually here"), it is not a dislike: answer the message, record nothing.
+   If the user's message already says what is wrong or supplies the correction, go on.
    If it does not (vague "это фигня, переделывай") and `<confidence>` is below 0.5 or the issue is
    `wrong_facts`, ask one line: what exactly is off. Stop there; rewrite and record only once the
    answer arrives.
