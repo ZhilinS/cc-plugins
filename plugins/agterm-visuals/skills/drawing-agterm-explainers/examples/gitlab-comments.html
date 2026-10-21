@@ -51,10 +51,13 @@
   if (!IN_AGTERM && (!GITLAB || !PROJECT || !APP_ID)) return;
   const cmRoot = document.getElementById('cm-root');
   if (cmRoot && !IN_AGTERM) cmRoot.style.display = 'none';
-  let PAGE = location.pathname.split('/').filter(Boolean)[0] || 'root';
+  // Share puts a page at <pages root>/<id>/ and the OAuth callback at <pages root>/callback.html; the pages root is
+  // the domain root with a unique Pages domain, or /<project>/ without one
+  const pageDir = new URL('./', location.href);
+  let PAGE = pageDir.pathname.split('/').filter(Boolean).pop() || 'root';
   if (IN_AGTERM) PAGE = 'agterm:' + document.title;
   const API = `${GITLAB}/api/v4/projects/${encodeURIComponent(PROJECT)}`;
-  const CALLBACK = location.origin + '/callback.html';
+  const CALLBACK = new URL('../callback.html', pageDir).href;
   const OPEN_KEY = 'gl-open:' + PAGE;
   const MARK = /\n*<!-- agterm-anchor: (.+?) rev: (\S+) -->\s*$/;
   const REV = meta('explainer-rev') || '1';
