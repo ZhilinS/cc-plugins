@@ -62,6 +62,14 @@ Every page lets the user comment on any element and send the notes to the chat. 
 - `session.type` sends Return per newline and does not space Returns inside a payload, so the message must be ONE line plus a single trailing `\n`.
 - Put `<meta name="explainer-rev" content="N">` in the head and bump it on every rewrite: sent comments stay as history, and leftovers from an older rev are tagged.
 
+## Comments in GitLab
+
+A page shared with agterm's Share (Settings > Sharing with an OAuth Application ID) gets threads from colleagues: on GitLab Pages they sign in and comment blocks; inside agterm the same threads show read-only, with "▶ Следить" polling every 30 s for an hour.
+
+- Paste the two blocks of `examples/gitlab-comments.html` (`<style id="gl-style">`, `<script id="gl-script">`) into every page, after the cm-script. Without Share's metas and outside agterm it does nothing.
+- Give every block a colleague may discuss a `data-anchor` with a short readable name that survives rewrites: `data-anchor="строки 16–19"`, `data-anchor="шаг: Opus → pi"`. A thread sticks to that name; renaming a block moves its threads to "без блока".
+- Bump `explainer-rev` on a rewrite: a thread left on an older rev is marked as such on its block.
+
 ## Before saying it's done
 
 1. `node --check` on the extracted `<script>`.
