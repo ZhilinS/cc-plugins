@@ -1,0 +1,316 @@
+<style id="gl-style">
+  /* ===== GitLab comments: paste this style + the script below into any explainer, after the cm-script ===== */
+  body { --gl-fg: var(--agterm-foreground, CanvasText); --gl-bg: var(--agterm-background, Canvas);
+    --gl-acc: var(--agterm-color-3, #c99a1c); --gl-err: var(--agterm-color-1, #d04040);
+    --gl-dim: color-mix(in srgb, var(--gl-fg) 55%, transparent); --gl-line: color-mix(in srgb, var(--gl-fg) 25%, transparent);
+    --gl-card: color-mix(in srgb, var(--gl-fg) 6%, transparent); }
+  [data-anchor] { position: relative; }
+  #gl-bar { position: fixed; top: 10px; right: 16px; z-index: 40; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end;
+    max-width: calc(100vw - 32px); font: 13px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; }
+  #gl-bar button, .gl-thread button, .gl-badge { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 999px; padding: 4px 11px;
+    color: var(--gl-fg); border: 1.5px solid var(--gl-line); background: linear-gradient(var(--gl-bg), var(--gl-bg)), Canvas; }
+  #gl-bar button:hover, .gl-thread button:hover, .gl-badge:hover { border-color: var(--gl-acc); }
+  #gl-bar button[aria-pressed="true"] { border-color: var(--gl-acc); color: var(--gl-acc); }
+  #gl-bar.ag { top: 52px; }
+  #gl-status { font-size: 12px; color: var(--gl-dim); background: linear-gradient(var(--gl-bg), var(--gl-bg)), Canvas; border-radius: 6px; padding: 2px 6px; }
+  #gl-status:empty { display: none; }
+  #gl-status.err { color: var(--gl-err); }
+  .gl-badge { position: absolute; top: 2px; right: 6px; z-index: 2; padding: 1px 8px; font-size: 12px; }
+  .gl-thread { margin: 6px 28px 10px 5em; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--gl-acc);
+    background: linear-gradient(var(--gl-bg), var(--gl-bg)), Canvas; font: 13px/1.45 -apple-system, BlinkMacSystemFont, sans-serif; }
+  .gl-note { padding: 4px 0; border-bottom: 1px solid var(--gl-line); }
+  .gl-note:last-of-type { border-bottom: 0; }
+  .gl-who { font-weight: 600; font-size: 12px; }
+  .gl-who time { font-weight: 400; color: var(--gl-dim); margin-left: 6px; }
+  .gl-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .gl-thread textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; min-height: 3.2em; font: inherit; color: var(--gl-fg);
+    background: var(--gl-card); border: 1px solid var(--gl-line); border-radius: 6px; padding: 5px 7px; resize: vertical; }
+  .gl-btns { display: flex; gap: 6px; margin-top: 6px; }
+  .gl-btns button { padding: 2px 10px; font-size: 12px; }
+  .gl-btns button.busy { cursor: progress; opacity: .8; }
+  .gl-btns button.busy::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px;
+    border: 2px solid var(--gl-line); border-top-color: var(--gl-acc); border-radius: 50%; animation: gl-spin .7s linear infinite; }
+  @keyframes gl-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .gl-btns button.busy::before { animation-duration: 2s; } }
+  body.gl-on [data-anchor] { cursor: crosshair; }
+  body.gl-on [data-anchor]:hover { outline: 2px dashed var(--gl-acc); outline-offset: -2px; }
+  #gl-orphans:empty { display: none; }
+  #gl-orphans h2 { font-size: 15px; margin: 22px 0 8px; }
+  #gl-orphans .gl-thread { margin-left: 0; }
+  .gl-quote { color: var(--gl-dim); font-size: 12px; margin-bottom: 4px; }
+</style>
+<script id="gl-script">
+// GitLab comments: one issue per shared page, one discussion per block ([data-anchor] element); a discussion's
+// first note ends with <!-- agterm-anchor: NAME rev: REV -->. On GitLab Pages (agterm's Share wrote the gl-* metas)
+// viewers sign in and read/write as themselves; inside agterm the threads are read-only through
+// session.overlay.comments, and comments still go to the chat through the cm layer.
+(() => {
+  const meta = name => (document.querySelector(`meta[name="${name}"]`) || {}).content;
+  const GITLAB = meta('gl-url'), PROJECT = meta('gl-project'), APP_ID = meta('gl-app-id');
+  const IN_AGTERM = typeof agterm !== 'undefined';
+  if (!IN_AGTERM && (!GITLAB || !PROJECT || !APP_ID)) return;
+  const cmRoot = document.getElementById('cm-root');
+  if (cmRoot && !IN_AGTERM) cmRoot.style.display = 'none';
+  let PAGE = location.pathname.split('/').filter(Boolean)[0] || 'root';
+  if (IN_AGTERM) PAGE = 'agterm:' + document.title;
+  const API = `${GITLAB}/api/v4/projects/${encodeURIComponent(PROJECT)}`;
+  const CALLBACK = location.origin + '/callback.html';
+  const OPEN_KEY = 'gl-open:' + PAGE;
+  const MARK = /\n*<!-- agterm-anchor: (.+?) rev: (\S+) -->\s*$/;
+  const REV = meta('explainer-rev') || '1';
+  const read = (store, key) => { try { return JSON.parse(store.getItem(key)); } catch (e) { return null; } };
+  let token = read(localStorage, 'gl-token');
+  let issue = null, threads = [], commenting = false, composing = null, watchTimer = null, watchUntil = 0;
+  const WATCH_EVERY = 30000, WATCH_FOR = 3600000;
+  const signedIn = () => IN_AGTERM || token;
+  const drafts = new Map();   // form key -> unsent text
+  const open = new Set(read(localStorage, OPEN_KEY) || []);
+
+  class NeedLogin extends Error {}
+  const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const random = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
+  // A line starting with "/" is a GitLab quick action (/close, /label…); the backslash keeps it plain text.
+  const inert = text => text.replace(/^\//gm, '\\/');
+  const shown = body => body.replace(MARK, '').replace(/^\\\//gm, '/');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  async function login() {
+    const verifier = random(32), state = random(16);
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+    sessionStorage.setItem('gl-oauth:' + state, JSON.stringify({ verifier, back: location.href }));
+    location.href = GITLAB + '/oauth/authorize?' + new URLSearchParams({
+      client_id: APP_ID, redirect_uri: CALLBACK, response_type: 'code', state, scope: 'api',
+      code_challenge: b64url(digest), code_challenge_method: 'S256',
+    });
+  }
+
+  let refreshing = null;
+  const refresh = () => refreshing || (refreshing = renew().finally(() => { refreshing = null; }));
+
+  async function renew() {
+    const sent = token.refresh;
+    const res = await fetch(GITLAB + '/oauth/token', { method: 'POST', body: new URLSearchParams({
+      grant_type: 'refresh_token', client_id: APP_ID, refresh_token: sent, redirect_uri: CALLBACK }) });
+    if (!res.ok) {
+      const stored = read(localStorage, 'gl-token');
+      if (stored && stored.refresh !== sent) { token = stored; return; }   // another tab refreshed first
+      localStorage.removeItem('gl-token'); token = null; throw new NeedLogin();
+    }
+    const tok = await res.json();
+    token = { access: tok.access_token, refresh: tok.refresh_token, expires: (tok.created_at + tok.expires_in) * 1000 };
+    localStorage.setItem('gl-token', JSON.stringify(token));
+  }
+
+  async function api(path, body) {
+    if (!token) throw new NeedLogin();
+    if (Date.now() > token.expires - 60000) await refresh();
+    const call = () => fetch(API + path, body ? {
+      method: 'POST', body: JSON.stringify(body),
+      headers: { Authorization: 'Bearer ' + token.access, 'Content-Type': 'application/json' },
+    } : { headers: { Authorization: 'Bearer ' + token.access } });
+    let res = await call();
+    if (res.status === 401) { await refresh(); res = await call(); }
+    if (!res.ok) throw new Error(`GitLab ответил ${res.status} на ${path.split('?')[0]}`);
+    return { data: await res.json(), next: res.headers.get('X-Next-Page') };
+  }
+
+  async function all(path) {
+    const items = [];
+    for (let page = '1'; page; ) {
+      const res = await api(`${path}&page=${page}`);
+      items.push(...res.data);
+      page = res.next;
+    }
+    return items;
+  }
+
+  // ponytail: the page's issue is found by its code in the title; two first comments at the same moment
+  // can create two issues, the oldest wins. Add a lock or owner-created issues if that ever happens.
+  const threadsFrom = discussions => discussions.map(dsc => {
+    const notes = dsc.notes.filter(note => !note.system).map(note => ({
+      id: note.id, name: (note.author && note.author.name) || note.author || '', at: note.created_at || note.createdAt, body: note.body,
+    }));
+    const found = notes.length ? notes[0].body.match(MARK) : null;
+    return { id: dsc.id, anchor: found ? found[1] : null, rev: found ? found[2] : null, notes };
+  }).filter(thr => thr.notes.length);
+
+  async function load() {
+    if (IN_AGTERM) {
+      const res = await agterm.request('session.overlay.comments');
+      return { page: null, list: threadsFrom((res && res.discussions) || []) };
+    }
+    const found = (await api(`/issues?in=title&search=${encodeURIComponent(PAGE)}&state=all&order_by=created_at&sort=asc&per_page=20`)).data;
+    const page = found.find(iss => iss.title.includes(`· ${PAGE} ·`)) || null;
+    const discussions = page ? await all(`/issues/${page.iid}/discussions?per_page=100`) : [];
+    return { page, list: threadsFrom(discussions) };
+  }
+
+  async function ensureIssue() {
+    if (!issue) {
+      issue = (await api('/issues', { title: `Комментарии · ${PAGE} · ${document.title}`, description: location.href })).data;
+    }
+    return issue;
+  }
+
+  // ---- rendering ----
+  const bar = el('div'); bar.id = 'gl-bar';
+  const status = el('span'); status.id = 'gl-status';
+  const orphans = el('div'); orphans.id = 'gl-orphans';
+  if (IN_AGTERM) bar.className = 'ag';
+  document.body.append(bar);
+  (document.querySelector('.page') || document.body).append(orphans);
+  const say = (text, isErr) => { status.textContent = text || ''; status.className = isErr ? 'err' : ''; };
+  const saveOpen = () => { try { localStorage.setItem(OPEN_KEY, JSON.stringify([...open])); } catch (e) {} };
+  const anchors = () => [...document.querySelectorAll('[data-anchor]')];
+
+  function button(text, onClick, cls) {
+    const b = el('button', cls, text);
+    b.type = 'button';
+    b.addEventListener('click', ev => { ev.stopPropagation(); onClick(ev); });
+    return b;
+  }
+
+  function renderBar() {
+    bar.replaceChildren(status);
+    if (!signedIn()) { bar.append(button('Войти через GitLab, чтобы комментировать', login)); return; }
+    const anchored = threads.filter(thr => thr.anchor);
+    const anyOpen = anchored.some(thr => open.has(thr.anchor));
+    const all = button(`💬 ${threads.length} ${anyOpen ? '▾' : '▸'}`, () => {
+      if (anyOpen) open.clear(); else anchored.forEach(thr => open.add(thr.anchor));
+      saveOpen(); render();
+    });
+    all.title = anyOpen ? 'Скрыть все комментарии' : 'Показать все комментарии';
+    all.setAttribute('aria-pressed', String(anyOpen));
+    const mode = button(commenting ? '✎ Выберите блок' : '✎ Комментировать', () => { commenting = !commenting; render(); });
+    mode.setAttribute('aria-pressed', String(commenting));
+    if (IN_AGTERM) {
+      const watch = button(watchTimer ? '■ Слежу' : '▶ Следить', toggleWatch);
+      watch.title = watchTimer ? 'Остановить; само остановится через час' : 'Проверять новые комментарии раз в 30 секунд в течение часа';
+      watch.setAttribute('aria-pressed', String(!!watchTimer));
+      bar.append(all, watch, button('↻', () => refreshAll()));
+      return;
+    }
+    bar.append(all, mode, button('↻', () => refreshAll()));
+  }
+
+  function noteView(note) {
+    const box = el('div', 'gl-note');
+    const who = el('div', 'gl-who', note.name);
+    who.append(el('time', null, new Date(note.at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })));
+    box.append(who, el('div', 'gl-body', shown(note.body)));
+    return box;
+  }
+
+  function form(key, placeholder, onSend, onCancel) {
+    const wrap = el('div');
+    const text = el('textarea'); text.placeholder = placeholder;
+    text.value = drafts.get(key) || '';
+    text.addEventListener('input', () => drafts.set(key, text.value));
+    const send = button('Отправить', async () => {
+      if (!text.value.trim()) return;
+      send.disabled = true; send.classList.add('busy'); send.textContent = 'Отправляю';
+      try { await onSend(text.value.trim()); drafts.delete(key); await refreshAll(); } catch (e) {
+        fail(e); send.disabled = false; send.classList.remove('busy'); send.textContent = 'Отправить';
+      }
+    });
+    const btns = el('div', 'gl-btns'); btns.append(send);
+    if (onCancel) btns.append(button('Отмена', onCancel));
+    wrap.append(text, btns);
+    wrap.addEventListener('click', ev => ev.stopPropagation());
+    if (key === 'new:' + composing) setTimeout(() => text.focus(), 0);
+    return wrap;
+  }
+
+  function threadView(thr, quote) {
+    const box = el('div', 'gl-thread');
+    if (!quote && thr.rev !== REV) box.append(el('div', 'gl-quote', `Оставлен к версии ${thr.rev} страницы, текст блока мог измениться`));
+    if (quote) box.append(el('div', 'gl-quote', `Блок «${thr.anchor || 'без блока'}» не найден в этой версии страницы`));
+    thr.notes.forEach(note => box.append(noteView(note)));
+    if (!IN_AGTERM) box.append(form('reply:' + thr.id, 'Ответить…', text =>
+      api(`/issues/${issue.iid}/discussions/${thr.id}/notes`, { body: inert(text) })));
+    box.addEventListener('click', ev => ev.stopPropagation());
+    return box;
+  }
+
+  function render() {
+    document.body.classList.toggle('gl-on', commenting);
+    document.querySelectorAll('.gl-badge, .gl-thread, .gl-new').forEach(node => node.remove());
+    const names = new Set(anchors().map(node => node.dataset.anchor));
+    anchors().forEach(node => {
+      const mine = threads.filter(thr => thr.anchor === node.dataset.anchor);
+      if (!mine.length) return;
+      const isOpen = open.has(node.dataset.anchor);
+      const count = mine.reduce((sum, thr) => sum + thr.notes.length, 0);
+      node.append(button(`💬 ${count} ${isOpen ? '▾' : '▸'}`, () => {
+        if (isOpen) open.delete(node.dataset.anchor); else open.add(node.dataset.anchor);
+        saveOpen(); render();
+      }, 'gl-badge'));
+      if (isOpen) mine.forEach(thr => node.append(threadView(thr, false)));
+    });
+    const target = anchors().find(node => node.dataset.anchor === composing);
+    if (target) target.append(newThread(composing));
+    orphans.replaceChildren();
+    const lost = threads.filter(thr => !thr.anchor || !names.has(thr.anchor));
+    if (lost.length) {
+      orphans.append(el('h2', null, 'Комментарии без блока на этой версии'));
+      lost.forEach(thr => orphans.append(threadView(thr, true)));
+    }
+    renderBar();
+  }
+
+  function newThread(anchor) {
+    const box = el('div', 'gl-thread gl-new');
+    box.append(el('div', 'gl-quote', `Новый комментарий к блоку «${anchor}»`), form('new:' + anchor, 'Комментарий…', async text => {
+      await ensureIssue();
+      await api(`/issues/${issue.iid}/discussions`, { body: `${inert(text)}\n\n<!-- agterm-anchor: ${anchor} rev: ${REV} -->` });
+      composing = null; open.add(anchor); saveOpen();
+    }, () => { composing = null; drafts.delete('new:' + anchor); render(); }));
+    box.addEventListener('click', ev => ev.stopPropagation());
+    return box;
+  }
+
+  document.addEventListener('click', ev => {
+    if (!commenting) return;
+    if (ev.target.closest('.gl-badge, .gl-thread, #gl-bar')) return;
+    const node = ev.target.closest('[data-anchor]');
+    if (!node) return;
+    ev.preventDefault();
+    commenting = false; composing = node.dataset.anchor;
+    render();
+  }, true);
+
+  function toggleWatch() {
+    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; render(); return; }
+    watchUntil = Date.now() + WATCH_FOR;
+    watchTimer = setInterval(() => { if (Date.now() > watchUntil) toggleWatch(); else refreshAll(); }, WATCH_EVERY);
+    refreshAll();
+  }
+
+  const noteCount = list => list.reduce((sum, thr) => sum + thr.notes.length, 0);
+
+  function fail(e) {
+    // inside agterm a refusal means this page is not shared with comments: show nothing
+    if (IN_AGTERM) { if (watchTimer) toggleWatch(); bar.hidden = true; return; }
+    if (e instanceof NeedLogin) { token = null; say('Нужно войти заново'); render(); return; }
+    say(e.message, true);
+  }
+
+  let generation = 0;
+  async function refreshAll() {
+    if (!signedIn()) { render(); return; }
+    const mine = ++generation;
+    if (!watchTimer) say('Загружаю комментарии…');
+    try {
+      const snapshot = await load();
+      if (mine !== generation) return;   // a newer reload started meanwhile
+      const added = noteCount(snapshot.list) - noteCount(threads);
+      issue = snapshot.page; threads = snapshot.list;
+      bar.hidden = false;
+      say(watchTimer && added > 0 ? `Новых комментариев: ${added}` : '');
+    } catch (e) { fail(e); }
+    render();
+  }
+
+  refreshAll();
+})();
+</script>
