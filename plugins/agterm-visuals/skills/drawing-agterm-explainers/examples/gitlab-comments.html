@@ -12,6 +12,7 @@
   #gl-bar button:hover, .gl-thread button:hover, .gl-badge:hover { border-color: var(--gl-acc); }
   #gl-bar button[aria-pressed="true"] { border-color: var(--gl-acc); color: var(--gl-acc); }
   #gl-bar.ag { top: 52px; }
+  #gl-bar[hidden] { display: none; }
   #gl-status { font-size: 12px; color: var(--gl-dim); background: linear-gradient(var(--gl-bg), var(--gl-bg)), Canvas; border-radius: 6px; padding: 2px 6px; }
   #gl-status:empty { display: none; }
   #gl-status.err { color: var(--gl-err); }
@@ -53,11 +54,11 @@
   if (cmRoot && !IN_AGTERM) cmRoot.style.display = 'none';
   // Share puts a page at <pages root>/<id>/ and the OAuth callback at <pages root>/callback.html; the pages root is
   // the domain root with a unique Pages domain, or /<project>/ without one
-  const pageDir = new URL('./', location.href);
-  let PAGE = pageDir.pathname.split('/').filter(Boolean).pop() || 'root';
-  if (IN_AGTERM) PAGE = 'agterm:' + document.title;
+  // inside agterm the page may be about:blank, where a relative URL throws
+  const pageDir = IN_AGTERM ? null : new URL('./', location.href);
+  const PAGE = IN_AGTERM ? 'agterm:' + document.title : pageDir.pathname.split('/').filter(Boolean).pop() || 'root';
   const API = `${GITLAB}/api/v4/projects/${encodeURIComponent(PROJECT)}`;
-  const CALLBACK = new URL('../callback.html', pageDir).href;
+  const CALLBACK = IN_AGTERM ? '' : new URL('../callback.html', pageDir).href;
   const OPEN_KEY = 'gl-open:' + PAGE;
   const MARK = /\n*<!-- agterm-anchor: (.+?) rev: (\S+) -->\s*$/;
   const REV = meta('explainer-rev') || '1';
@@ -178,7 +179,7 @@
     if (!signedIn()) { bar.append(button('Войти через GitLab, чтобы комментировать', login)); return; }
     const anchored = threads.filter(thr => thr.anchor);
     const anyOpen = anchored.some(thr => open.has(thr.anchor));
-    const all = button(`💬 ${threads.length} ${anyOpen ? '▾' : '▸'}`, () => {
+    const all = button(`${IN_AGTERM ? 'Коллеги' : '💬'} ${threads.length} ${anyOpen ? '▾' : '▸'}`, () => {
       if (anyOpen) open.clear(); else anchored.forEach(thr => open.add(thr.anchor));
       saveOpen(); render();
     });
@@ -310,7 +311,10 @@
       issue = snapshot.page; threads = snapshot.list;
       bar.hidden = false;
       say(watchTimer && added > 0 ? `Новых комментариев: ${added}` : '');
-    } catch (e) { fail(e); }
+    } catch (e) {
+      if (mine !== generation) return;   // a newer reload already answered
+      fail(e);
+    }
     render();
   }
 
