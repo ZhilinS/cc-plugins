@@ -25,6 +25,8 @@ The runner switches a step to the fallback after two failed calls on it (alarm-k
 
 **Routing rule (the human's call, 2026-10-12): coding on deepseek-v4.1-flash, everything high-level on muse-spark, deepseek-v4-pro rarely.** Go requests per month: muse-spark ≈ 226k, v4.1-flash ≈ 173k, v4-pro ≈ 5k — a v4-pro call costs ~40 muse calls; v4-pro as the default `orchestrate` model is what exhausted the quota on 2026-10-12. Use `deep` only when the step really needs reasoning (architecture, refactoring across layers); pair it with a muse `review` — a second opinion before, or a check after. Plain multi-file coding is `orchestrate` on flash. `glm-5.3-flash` is not used. Free models `longcat-2.5-preview-free` / `step-5-preview-free` don't spend the Go quota and may be named in a packet `MODEL:` line (trial, or work while the quota is exhausted).
 
+**Max reasoning on flash (the human's call, 2026-10-21).** By default pi runs deepseek-v4.1-flash at `high` (pi's `defaultThinkingLevel`). For hard coding — tricky logic, subtle bugs — or a small architectural change that stays within a few files, add `THINKING: max` to a `code` / `orchestrate` packet instead of escalating to `deep`: same cheap model, longer reasoning. Escalate to `deep` only when the change really spans layers. Flash accepts only `low`, `high`, `max`.
+
 **Banned: kimi-k3.** Never put it in a packet, not even as a `MODEL:` override or a fallback. One screenshot-reading live check (2026-10-11) ran 88 requests for $1.83, 94% of the session's Go spend, and exhausted the 5-hour quota. For visual checks, have a script turn frames into numbers and give pi the numbers, not the images.
 
 Notes: muse-spark is strong but slow and often times out — give it narrow, one-question steps; it carries research, review and verify, not simple coding. Fast/cheap models first; escalate the TYPE only when the work actually needs it.
@@ -44,6 +46,7 @@ TYPE: <simple | code | orchestrate | deep | research | review | verify>
 GOAL: <one paragraph: what done looks like>
 WORKDIR: <absolute path>
 MAX_CALLS: <max pi calls per item, default 8>
+THINKING: <optional: max for hard coding or a small architectural change on flash; omit for the default>
 CHECKLIST:
 1. <item> — DONE WHEN: <verifiable criterion>
 2. <item> — DONE WHEN: <verifiable criterion>

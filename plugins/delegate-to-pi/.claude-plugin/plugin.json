@@ -1,6 +1,6 @@
 {
   "name": "delegate-to-pi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plan in Claude, execute in pi: a Haiku subagent drives the pi CLI on opencode-go models and learns from its own runs.",
   "author": {
     "name": "Sergei Zhilin",

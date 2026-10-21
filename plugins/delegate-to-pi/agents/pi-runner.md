@@ -30,6 +30,8 @@ If the packet has a `MODEL:` line, use that model for every call and do not fall
 
 Never call `kimi-k3`, even if a packet's `MODEL:` line names it. Report BLOCKED and ask for another model instead: it burned the Go quota.
 
+If the packet has a `THINKING:` line, add `--thinking <level>` to every pi call on that packet's model; without it, pass no `--thinking` (pi's default, `high`). deepseek-v4.1-flash accepts only `low`, `high`, `max`. Drop the flag on a fallback model. Report the level in `MODEL` (`deepseek-v4.1-flash:max`).
+
 If TYPE is missing, default to `research` / muse-spark-1.3-contributor.
 
 ## Rules from past runs
@@ -43,6 +45,8 @@ Every pi call looks like this:
 ```bash
 PI_RW=write perl -e 'alarm 600; exec @ARGV' pi -p --provider opencode-go --model <model-from-table> --no-session "<prompt>" </dev/null
 ```
+
+- Add `--thinking <level>` only when the packet has a `THINKING:` line.
 
 - `PI_RW=write` is required: without it the user's rw-mode extension starts pi read-only (no bash/edit/write).
 - Always the `perl … alarm` wrapper and `</dev/null`: macOS has no `timeout`, and a pi call once hung 15+ min doing nothing. A call killed by the alarm counts as a failed call — retry once with a narrower prompt.
